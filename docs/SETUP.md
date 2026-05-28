@@ -19,7 +19,7 @@ sudo apt update
 sudo apt install -y build-essential git make cmake pkg-config bison flex libpng-dev unzip wget curl python3 python3-venv python3-pip default-jre xdg-utils ca-certificates
 ```
 
-During this setup, `sudo` required an interactive password, so the system packages were not installed automatically. GBDK-2020, RGBDS, Emulicious, hUGEDriver, and a temporary user-local `make` fallback were installed under your home directory.
+GBDK-2020, RGBDS, Emulicious, hUGEDriver, PyBoy, and a temporary user-local `make` fallback were installed under your home directory. Java is currently available through OpenJDK 21, so Emulicious can start from WSL.
 
 ## Installed User Tools
 
@@ -59,8 +59,6 @@ java -version
 
 The Makefile also falls back to `~/opt/gbdk` and `~/opt/rgbds`, so builds still work if an already-open terminal has not loaded the new shell environment yet.
 
-Java will remain missing until the recommended apt install succeeds.
-
 ## Smoke Test
 
 An official GBDK minimal example was compiled directly with `lcc`:
@@ -84,6 +82,13 @@ Expected values are similar to `:0` and `wayland-0`. Java is also required for E
 java -version
 ```
 
+The quick health check is:
+
+```sh
+cd ~/git/gb-blocks-playground
+make docto
+```
+
 WSLg can sometimes create Linux GUI windows that appear in Windows Task Manager but do not become visible. This has been observed with Emulicious/Java and can also happen with SDL depending on the Windows graphics driver. If that happens:
 
 1. Build from WSL:
@@ -96,12 +101,13 @@ WSLg can sometimes create Linux GUI windows that appear in Windows Task Manager 
 2. Try the WSL emulator targets:
 
    ```sh
+   make run-wslg
    make run
    make run-pyboy
    make run-pyboy-x11
    ```
 
-   `make run-pyboy` forces software rendering and disables sound to avoid common WSLg Mesa/ALSA failures.
+   `make run-wslg` checks WSLg and then uses the SDL/PyBoy path. `make run-pyboy` forces software rendering and disables sound to avoid common WSLg Mesa/ALSA failures.
 
 3. If a window still does not appear, close stuck emulator processes:
 
@@ -121,10 +127,25 @@ WSLg can sometimes create Linux GUI windows that appear in Windows Task Manager 
 
 If GUI launch still fails, use one of these workflows:
 
-- Install Java in WSL and run `emulicious build/terraria-gb-lite.gb`.
+- Run `make run-windows` from WSL to open the ROM through the Windows `.gb` file association.
+- Run `emulicious build/terraria-gb-lite.gb` from WSL.
 - Run Emulicious on Windows and open `\\wsl$\Ubuntu\home\arfipod\git\gb-blocks-playground\build\terraria-gb-lite.gb`.
 - Use BGB on Windows for strong Game Boy debugging.
 - Keep WSL as a headless build-only environment.
+
+If `make run-windows` says WSL cannot execute Windows programs, restart WSL from PowerShell:
+
+```powershell
+wsl --shutdown
+```
+
+Then reopen Ubuntu. If it still fails, enable interop in `/etc/wsl.conf` and restart WSL again:
+
+```ini
+[interop]
+enabled=true
+appendWindowsPath=true
+```
 
 The most reliable Windows workflow is: compile in WSL with `make`, then open the generated ROM from Windows using a Windows-native emulator. The ROM path from Windows is:
 

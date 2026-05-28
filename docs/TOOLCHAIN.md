@@ -18,11 +18,14 @@ Emulicious is prepared under WSL as the default `make run` emulator, but it need
 
 BGB is a strong Windows-side Game Boy emulator/debugger. It is often the most convenient option with WSL: build in Linux, open the ROM from Windows.
 
-PyBoy is useful as a lightweight WSL fallback when Java/WSLg windows do not appear correctly. This repository exposes it through `make run-pyboy` if the sandbox venv exists at `~/gbdev-sandbox/pyboy-venv`.
+PyBoy is useful as a lightweight WSL fallback when Java/WSLg windows do not appear correctly. This repository exposes it through `make run-wslg` and `make run-pyboy` if the sandbox venv exists at `~/gbdev-sandbox/pyboy-venv`.
 
 Recommended emulator workflow on Windows:
 
 - Use WSL for building and command-line tools.
+- Run `make doctor` to verify GBDK, RGBDS, Java, emulator launchers, and WSLg.
+- Run `make run-wslg` first for the WSLg/PyBoy path.
+- Run `make run-windows` from WSL if you want the ROM opened through the Windows `.gb` file association.
 - Use a Windows-native emulator when WSLg windows are invisible or unreliable.
 - Open the ROM from `\\wsl$\Ubuntu\home\arfipod\git\gb-blocks-playground\build\terraria-gb-lite.gb`.
 - Prefer BGB for Windows-side debugging and Emulicious for source-level/debugger experiments when its GUI works.
