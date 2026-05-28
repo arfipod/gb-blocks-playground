@@ -4,6 +4,9 @@
 #include <stdint.h>
 #include "input.h"
 
+#define PLAYER_WIDTH 8
+#define PLAYER_HEIGHT 16
+
 typedef struct Player {
     int16_t x;
     int16_t y;

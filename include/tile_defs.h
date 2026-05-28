@@ -10,8 +10,9 @@
 
 #define TILE_COUNT 4u
 #define TILE_SIZE 8u
+#define PLAYER_TILE_COUNT 2u
 
 extern const uint8_t terrain_tiles[TILE_COUNT * 16u];
-extern const uint8_t player_tiles[16u];
+extern const uint8_t player_tiles[PLAYER_TILE_COUNT * 16u];
 
 #endif

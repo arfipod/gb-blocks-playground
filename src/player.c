@@ -4,8 +4,6 @@
 #include "tile_defs.h"
 #include "world.h"
 
-#define PLAYER_WIDTH 8
-#define PLAYER_HEIGHT 8
 #define WALK_SPEED 1
 #define GRAVITY 1
 #define MAX_FALL_SPEED 3
@@ -41,7 +39,7 @@ static void move_v(Player *player)
 static void use_tool(Player *player, const InputState *input)
 {
     int16_t target_x = player->x;
-    int16_t target_y = (int16_t)(player->y + 4);
+    int16_t target_y = (int16_t)(player->y + (PLAYER_HEIGHT / 2));
 
     if (player->facing == 0u) {
         target_x = (int16_t)(target_x - TILE_SIZE);
