@@ -28,17 +28,29 @@ endif
 
 ifneq ($(wildcard $(HOME)/.local/bin/emulicious),)
 EMULATOR ?= $(HOME)/.local/bin/emulicious
+EMULATOR_FLAGS ?= -scale 4
+else ifneq ($(shell command -v pyboy 2>/dev/null),)
+EMULATOR ?= pyboy
+EMULATOR_FLAGS ?= --window SDL2 --scale 4 --dmg --no-sound-emulation
 else
 EMULATOR ?= emulicious
+EMULATOR_FLAGS ?= -scale 4
 endif
 
+ifneq ($(wildcard $(HOME)/gbdev-sandbox/pyboy-venv/bin/pyboy),)
 PYBOY ?= $(HOME)/gbdev-sandbox/pyboy-venv/bin/pyboy
+else
+PYBOY ?= pyboy
+endif
+
+DOCKER_IMAGE ?= gb-eyenaut-adventures-dev
+DOCKER_WORKDIR ?= /workspace/gb-eyenaut-adventures
+DOCKER_RUN ?= docker run --rm -it -v "$(CURDIR):$(DOCKER_WORKDIR)" -w "$(DOCKER_WORKDIR)" $(DOCKER_IMAGE)
 
 LCCFLAGS := $(INCLUDES) -Wm-yn"EYENAUT ADV"
-EMULATOR_FLAGS ?= -scale 4
 PYBOY_ENV ?= SDL_AUDIODRIVER=dummy LIBGL_ALWAYS_SOFTWARE=1 MESA_LOADER_DRIVER_OVERRIDE=llvmpipe
 
-.PHONY: all clean run run-pyboy run-pyboy-x11 run-wslg run-windows debug wslg-check doctor doctor-wslg tools-check
+.PHONY: all clean run run-pyboy run-pyboy-x11 run-wslg run-windows debug wslg-check doctor doctor-wslg tools-check docker-build docker-shell docker-make docker-doctor
 
 all: $(ROM)
 
@@ -57,14 +69,18 @@ run: $(ROM)
 		echo "No emulator command found. Set EMULATOR=/path/to/emulator or install the emulicious launcher."; \
 		exit 1; \
 	fi
-	@if [ "$(EMULATOR)" = "emulicious" ] && ! command -v java >/dev/null 2>&1; then \
+	@if [ "$$(basename "$(EMULATOR)")" = "emulicious" ] && ! command -v java >/dev/null 2>&1; then \
 		echo "Emulicious is installed, but Java is missing. Install it with: sudo apt install -y default-jre"; \
 		exit 1; \
 	fi
-	$(EMULATOR) $(EMULATOR_FLAGS) $(ROM)
+	@if [ "$$(basename "$(EMULATOR)")" = "pyboy" ]; then \
+		$(PYBOY_ENV) $(EMULATOR) $(EMULATOR_FLAGS) $(ROM); \
+	else \
+		$(EMULATOR) $(EMULATOR_FLAGS) $(ROM); \
+	fi
 
 run-pyboy: $(ROM)
-	@if [ ! -x "$(PYBOY)" ]; then \
+	@if [ ! -x "$(PYBOY)" ] && ! command -v $(PYBOY) >/dev/null 2>&1; then \
 		echo "PyBoy was not found at $(PYBOY)."; \
 		echo "Create it with: python3 -m venv ~/gbdev-sandbox/pyboy-venv && ~/gbdev-sandbox/pyboy-venv/bin/python -m pip install pyboy"; \
 		exit 1; \
@@ -72,7 +88,7 @@ run-pyboy: $(ROM)
 	$(PYBOY_ENV) $(PYBOY) --window SDL2 --scale 4 --dmg --no-sound-emulation $(ROM)
 
 run-pyboy-x11: $(ROM)
-	@if [ ! -x "$(PYBOY)" ]; then \
+	@if [ ! -x "$(PYBOY)" ] && ! command -v $(PYBOY) >/dev/null 2>&1; then \
 		echo "PyBoy was not found at $(PYBOY)."; \
 		echo "Create it with: python3 -m venv ~/gbdev-sandbox/pyboy-venv && ~/gbdev-sandbox/pyboy-venv/bin/python -m pip install pyboy"; \
 		exit 1; \
@@ -122,6 +138,18 @@ wslg-check:
 doctor: tools-check
 
 doctor-wslg: tools-check wslg-check
+
+docker-build:
+	docker build -t $(DOCKER_IMAGE) .
+
+docker-shell:
+	$(DOCKER_RUN)
+
+docker-make:
+	$(DOCKER_RUN) make clean all
+
+docker-doctor:
+	$(DOCKER_RUN) make doctor
 
 tools-check:
 	@echo "GBDK lcc:      $$(command -v $(LCC) || true)"

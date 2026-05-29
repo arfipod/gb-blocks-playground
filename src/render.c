@@ -1,6 +1,7 @@
 #include <gb/gb.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include "eyenaut_player_walk.h"
 #include "render.h"
 #include "tile_defs.h"
 #include "world.h"
@@ -23,6 +24,7 @@ static uint8_t win_buffer[WIN_WIDTH * WIN_HEIGHT];
 static uint8_t tile_variant_buffer[16u];
 static uint16_t rendered_origin_tile;
 static uint8_t world_rendered;
+static uint8_t last_player_tile;
 
 static void init_light_tiles(void);
 static uint8_t render_tile_for_world_pos(uint16_t tx, uint8_t ty);
@@ -114,16 +116,6 @@ const uint8_t terrain_tiles[TILE_COUNT * 16u] = {
     0x00,0x00,0x66,0x00,0xFF,0x00,0xFF,0x00,0x7E,0x00,0x3C,0x00,0x18,0x00,0x00,0x00
 };
 
-const uint8_t player_tiles[PLAYER_TILE_COUNT * 16u] = {
-    // Tile 0: Eyenaut head
-    0x3C,0x00, 0x7E,0x00, 0xC3,0x3C, 0xC3,0x7E,
-    0xDB,0x3C, 0x66,0x18, 0x3C,0x00, 0x00,0x18,
-
-    // Tile 1: Eyenaut body
-    0x24,0x18, 0x42,0x3C, 0x81,0x7E, 0x81,0x3C,
-    0x24,0x18, 0x24,0x00, 0x42,0x00, 0xC3,0x00
-};
-
 const uint8_t cursor_sprite_tiles[CURSOR_SPRITE_TILE_COUNT * 16u] = {
     // Tile 0: actionable cursor
     0xFF,0x00, 0x81,0x00, 0x81,0x00, 0x81,0x00,
@@ -186,11 +178,12 @@ void render_init(void)
     SPRITES_8x16;
     set_bkg_data(0u, TILE_NORMAL_COUNT, terrain_tiles);
     init_light_tiles();
-    set_sprite_data(PLAYER_TILE_BASE, PLAYER_TILE_COUNT, player_tiles);
+    set_sprite_data(PLAYER_TILE_BASE, EYENAUT_PLAYER_WALK_TOTAL_TILE_COUNT, eyenaut_player_walk_tiles);
     set_sprite_data(CURSOR_SPRITE_TILE_BASE, CURSOR_SPRITE_TILE_COUNT, cursor_sprite_tiles);
     set_sprite_data(ENEMY_SPRITE_TILE_BASE, ENEMY_SPRITE_TILE_COUNT, enemy_sprite_tiles);
     set_sprite_data(DROP_SPRITE_TILE_BASE, DROP_SPRITE_TILE_COUNT, drop_sprite_tiles);
     set_sprite_tile(PLAYER_SPRITE, PLAYER_TILE_BASE);
+    last_player_tile = PLAYER_TILE_BASE;
     set_sprite_tile(CURSOR_SPRITE, CURSOR_SPRITE_TILE_BASE);
     move_sprite(CURSOR_SPRITE, SPRITE_HIDE_X, SPRITE_HIDE_Y);
 
@@ -504,12 +497,19 @@ void render_menu(const Inventory *inventory, bool near_workbench, uint8_t craft_
 void render_frame(const Camera *camera, const Player *player, const Enemy *enemies, const ItemDrop *drops)
 {
     uint8_t i;
+    uint8_t player_tile = (player->facing == 0u) ?
+                          (uint8_t)(PLAYER_TILE_BASE + EYENAUT_PLAYER_WALK_LEFT_TILE_OFFSET) :
+                          (uint8_t)(PLAYER_TILE_BASE + EYENAUT_PLAYER_WALK_RIGHT_TILE_OFFSET);
     int16_t sprite_x = (int16_t)(player->x - (int16_t)camera->x + 8);
     int16_t sprite_y = (int16_t)(player->y - camera->y + 16);
     int16_t cursor_x = (int16_t)((player->aim_tx << 3) - camera->x + 8);
     int16_t cursor_y = (int16_t)((player->aim_ty << 3) - camera->y + 16);
 
     move_bkg((uint8_t)camera->x, camera->y);
+    if (player_tile != last_player_tile) {
+        set_sprite_tile(PLAYER_SPRITE, player_tile);
+        last_player_tile = player_tile;
+    }
 
     if (player->invuln_timer != 0u && (player->invuln_timer & 4u)) {
         move_sprite(PLAYER_SPRITE, SPRITE_HIDE_X, SPRITE_HIDE_Y);

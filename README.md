@@ -1,12 +1,23 @@
-# Eyenaut Adventures
+# gb-eyenaut-adventures
 
 A deliberately small Game Boy / DMG homebrew prototype in C using GBDK-2020. The goal is to explore a destructible tile adventure while staying honest about original Game Boy limits.
+
+## Screenshots
+
+| Title screen | Exploration |
+| --- | --- |
+| <img src="docs/screenshots/title-screen-4x.png" width="320" alt="Eyenaut Adventures title screen with right-facing player sprite"> | <img src="docs/screenshots/world-hud-4x.png" width="320" alt="Exploration scene with right-facing player, HUD, torch light, enemy, and item drop"> |
+
+| Crafting | Celestial Ruins |
+| --- | --- |
+| <img src="docs/screenshots/crafting-menu-4x.png" width="320" alt="Crafting menu showing recipes and inventory counts"> | <img src="docs/screenshots/celestial-ruins-4x.png" width="320" alt="Celestial Ruins biome scene with left-facing player sprite"> |
 
 ## Target
 
 - Nintendo Game Boy / DMG.
 - C with GBDK-2020.
 - Optional RGBDS for assembly experiments and later optimization.
+- Register-driven SFX and a compact CH2 soundtrack loop.
 - No GB Studio or large engine.
 
 ## Build
@@ -14,7 +25,7 @@ A deliberately small Game Boy / DMG homebrew prototype in C using GBDK-2020. The
 Open a new WSL shell after setup so `~/.bashrc` exports `GBDK_HOME` and updates `PATH`.
 
 ```sh
-cd ~/git/gb-blocks-playground
+cd ~/git/gb-eyenaut-adventures
 make doctor
 make tools-check
 make clean
@@ -29,12 +40,23 @@ The ROM is written to:
 build/eyenaut-adventures.gb
 ```
 
+### Docker
+
+You can build without installing the toolchain on the host:
+
+```sh
+make docker-build
+make docker-make
+```
+
+See [docs/DOCKER.md](docs/DOCKER.md) for Windows PowerShell, WSL, Linux, and interactive shell examples.
+
 ## Run
 
 Recommended from WSL:
 
 ```sh
-cd ~/git/gb-blocks-playground
+cd ~/git/gb-eyenaut-adventures
 make run-wslg
 ```
 
@@ -61,7 +83,7 @@ make run-windows
 That target uses the Windows default app associated with `.gb` files. You can also build in WSL and open this ROM manually from a Windows-native emulator:
 
 ```text
-\\wsl$\Ubuntu\home\arfipod\git\gb-blocks-playground\build\eyenaut-adventures.gb
+\\wsl$\Ubuntu\home\arfipod\git\gb-eyenaut-adventures\build\eyenaut-adventures.gb
 ```
 
 See `docs/SETUP.md` for WSLg troubleshooting notes.

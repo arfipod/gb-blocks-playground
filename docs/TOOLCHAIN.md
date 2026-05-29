@@ -28,7 +28,7 @@ Recommended emulator workflow on Windows:
 - Run `make run-wslg` first for the WSLg/PyBoy path.
 - Run `make run-windows` from WSL if you want the ROM opened through the Windows `.gb` file association.
 - Use a Windows-native emulator when WSLg windows are invisible or unreliable.
-- Open the ROM from `\\wsl$\Ubuntu\home\arfipod\git\gb-blocks-playground\build\eyenaut-adventures.gb`.
+- Open the ROM from `\\wsl$\Ubuntu\home\arfipod\git\gb-eyenaut-adventures\build\eyenaut-adventures.gb`.
 - Prefer BGB for Windows-side debugging and Emulicious for source-level/debugger experiments when its GUI works.
 - If WSLg behaves strangely, run `wsl --update` and `wsl --shutdown` from PowerShell, then reopen Ubuntu.
 

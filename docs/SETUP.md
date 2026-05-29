@@ -85,7 +85,7 @@ java -version
 The quick health check is:
 
 ```sh
-cd ~/git/gb-blocks-playground
+cd ~/git/gb-eyenaut-adventures
 make doctor
 ```
 
@@ -100,7 +100,7 @@ WSLg can sometimes create Linux GUI windows that appear in Windows Task Manager 
 1. Build from WSL:
 
    ```sh
-   cd ~/git/gb-blocks-playground
+   cd ~/git/gb-eyenaut-adventures
    make
    ```
 
@@ -135,7 +135,7 @@ If GUI launch still fails, use one of these workflows:
 
 - Run `make run-windows` from WSL to open the ROM through the Windows `.gb` file association.
 - Run `emulicious build/eyenaut-adventures.gb` from WSL.
-- Run Emulicious on Windows and open `\\wsl$\Ubuntu\home\arfipod\git\gb-blocks-playground\build\eyenaut-adventures.gb`.
+- Run Emulicious on Windows and open `\\wsl$\Ubuntu\home\arfipod\git\gb-eyenaut-adventures\build\eyenaut-adventures.gb`.
 - Use BGB on Windows for strong Game Boy debugging.
 - Keep WSL as a headless build-only environment.
 
@@ -156,7 +156,7 @@ appendWindowsPath=true
 The most reliable Windows workflow is: compile in WSL with `make`, then open the generated ROM from Windows using a Windows-native emulator. The ROM path from Windows is:
 
 ```text
-\\wsl$\Ubuntu\home\arfipod\git\gb-blocks-playground\build\eyenaut-adventures.gb
+\\wsl$\Ubuntu\home\arfipod\git\gb-eyenaut-adventures\build\eyenaut-adventures.gb
 ```
 
 ## Asset Tools

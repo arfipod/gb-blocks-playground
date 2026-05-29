@@ -71,6 +71,7 @@ void game_init(void)
 
     render_init();
     audio_init();
+    audio_start_music();
 
     /* TODO: add save data after the world representation is stable. */
     /* TODO: fake lighting with tile variants or coarse palettes on CGB later. */
@@ -81,6 +82,7 @@ void game_update_logic(void)
     Inventory previous_inventory;
     uint8_t previous_hp;
 
+    audio_update();
     input_update(&input);
 
     if (input.pressed & J_SELECT) {

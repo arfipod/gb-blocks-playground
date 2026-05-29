@@ -39,7 +39,7 @@
 #define TILE_COUNT (TILE_NORMAL_COUNT + (TILE_WORLD_COUNT * 2u))
 #define TILE_SIZE 8u
 #define PLAYER_TILE_BASE ((TILE_COUNT + 1u) & 0xFEu)
-#define PLAYER_TILE_COUNT 2u
+#define PLAYER_TILE_COUNT 8u
 #define CURSOR_SPRITE_TILE_BASE (PLAYER_TILE_BASE + PLAYER_TILE_COUNT)
 #define CURSOR_SPRITE_TILE_COUNT 8u
 #define ENEMY_SPRITE_TILE_BASE (CURSOR_SPRITE_TILE_BASE + CURSOR_SPRITE_TILE_COUNT)
@@ -48,7 +48,6 @@
 #define DROP_SPRITE_TILE_COUNT 2u
 
 extern const uint8_t terrain_tiles[TILE_COUNT * 16u];
-extern const uint8_t player_tiles[PLAYER_TILE_COUNT * 16u];
 extern const uint8_t cursor_sprite_tiles[CURSOR_SPRITE_TILE_COUNT * 16u];
 extern const uint8_t enemy_sprite_tiles[ENEMY_SPRITE_TILE_COUNT * 16u];
 extern const uint8_t drop_sprite_tiles[DROP_SPRITE_TILE_COUNT * 16u];

@@ -3,6 +3,7 @@
 #include <gbdk/font.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include "eyenaut_player_walk.h"
 #include "splash.h"
 
 #define SPLASH_ROBOT_TILE_BASE 128u
@@ -12,8 +13,8 @@
 #define SPLASH_ROBOT_Y_TOP 5u
 #define SPLASH_ROBOT_Y_LOW 6u
 #define SPLASH_PLAYER_TILE_BASE 128u
-#define SPLASH_PLAYER_WIDTH 1u
-#define SPLASH_PLAYER_HEIGHT 2u
+#define SPLASH_PLAYER_WIDTH EYENAUT_PLAYER_WALK_WIDTH_TILES
+#define SPLASH_PLAYER_HEIGHT EYENAUT_PLAYER_WALK_HEIGHT_TILES
 #define SPLASH_PLAYER_X 10u
 #define SPLASH_PLAYER_Y_TOP 8u
 #define SPLASH_PLAYER_Y_LOW 9u
@@ -67,14 +68,6 @@ static const uint8_t splash_robot_map[SPLASH_ROBOT_WIDTH * SPLASH_ROBOT_HEIGHT] 
     SPLASH_ROBOT_TILE_BASE + 25u, SPLASH_ROBOT_TILE_BASE + 26u, SPLASH_ROBOT_TILE_BASE + 27u, SPLASH_ROBOT_TILE_BASE + 28u, SPLASH_ROBOT_TILE_BASE + 29u
 };
 
-static const uint8_t splash_player_tiles[SPLASH_PLAYER_WIDTH * SPLASH_PLAYER_HEIGHT * 16u] = {
-    0x3C,0x00, 0x7E,0x00, 0xC3,0x3C, 0xC3,0x7E,
-    0xDB,0x3C, 0x66,0x18, 0x3C,0x00, 0x00,0x18,
-
-    0x24,0x18, 0x42,0x3C, 0x81,0x7E, 0x81,0x3C,
-    0x24,0x18, 0x24,0x00, 0x42,0x00, 0xC3,0x00
-};
-
 static const uint8_t splash_player_map[SPLASH_PLAYER_WIDTH * SPLASH_PLAYER_HEIGHT] = {
     SPLASH_PLAYER_TILE_BASE + 0u,
     SPLASH_PLAYER_TILE_BASE + 1u
@@ -88,8 +81,8 @@ static bool splash_has_save(void)
 static void load_splash_robot_tiles(void)
 {
     set_bkg_data(SPLASH_PLAYER_TILE_BASE,
-                 SPLASH_PLAYER_WIDTH * SPLASH_PLAYER_HEIGHT,
-                 splash_player_tiles);
+                 EYENAUT_PLAYER_WALK_TILE_COUNT,
+                 eyenaut_player_walk_tiles);
 }
 
 static void draw_splash_ground(void)

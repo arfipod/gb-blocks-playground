@@ -1,0 +1,15 @@
+.git
+build
+*.gb
+*.ihx
+*.noi
+*.map
+*.sym
+*.cdb
+*.adb
+*.lst
+*.o
+*.rel
+*.rst
+__pycache__
+.pytest_cache
