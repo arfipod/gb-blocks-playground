@@ -32,10 +32,25 @@ static uint8_t column_surface(uint16_t x)
 {
     uint8_t seed_lo = (uint8_t)generation_seed;
     uint8_t seed_hi = (uint8_t)(generation_seed >> 8);
+    Biome biome = world_biome_at_x(x);
     uint8_t wave = (uint8_t)((((x + seed_hi) >> 2) & 1u) +
                              (((x + seed_lo) >> 4) & 1u));
     uint8_t noise = (uint8_t)((x * 17u + 23u + seed_lo + (seed_hi * 3u)) & 31u);
     uint8_t surface = (uint8_t)(10u + wave);
+
+    switch (biome) {
+    case BIOME_ROOTWOOD_GROVE:
+        surface = (uint8_t)(9u + wave);
+        break;
+    case BIOME_STONE_BELT:
+        surface = (uint8_t)(11u + (wave >> 1));
+        break;
+    case BIOME_CELESTIAL_RUINS:
+        surface = (uint8_t)(9u + wave + ((x >> 3) & 1u));
+        break;
+    default:
+        break;
+    }
 
     if (noise < 5u) {
         --surface;
@@ -47,18 +62,75 @@ static uint8_t column_surface(uint16_t x)
         --surface;
     }
 
+    if (biome == BIOME_CELESTIAL_RUINS && ((x + seed_lo) & 7u) == 0u) {
+        surface = (uint8_t)(surface - 2u);
+    }
+
     return clamp_surface(surface);
 }
 
 static uint8_t tree_base_at(uint16_t x)
 {
     uint8_t seed_lo = (uint8_t)generation_seed;
+    uint8_t tree_noise;
+    Biome biome = world_biome_at_x(x);
 
     if (x < 4u || x > (WORLD_WIDTH_TILES - 5u)) {
         return 0u;
     }
 
-    return (uint8_t)(((x * 29u + 11u + seed_lo) & 31u) == 3u);
+    tree_noise = (uint8_t)((x * 29u + 11u + seed_lo) & 31u);
+
+    switch (biome) {
+    case BIOME_ROOTWOOD_GROVE:
+        return tree_noise == 3u || tree_noise == 11u || tree_noise == 23u;
+    case BIOME_STONE_BELT:
+        return tree_noise == 3u && ((x >> 2) & 1u) == 0u;
+    case BIOME_CELESTIAL_RUINS:
+        return tree_noise == 7u;
+    default:
+        return tree_noise == 3u;
+    }
+}
+
+static uint8_t surface_tile_for_biome(Biome biome, uint8_t noise)
+{
+    switch (biome) {
+    case BIOME_STONE_BELT:
+        return noise < 18u ? TILE_STONE : TILE_GRASS;
+    case BIOME_CELESTIAL_RUINS:
+        return noise < 20u ? TILE_STONE : TILE_GRASS;
+    default:
+        return TILE_GRASS;
+    }
+}
+
+static uint8_t cave_threshold_for_biome(Biome biome)
+{
+    switch (biome) {
+    case BIOME_ROOTWOOD_GROVE:
+        return 2u;
+    case BIOME_STONE_BELT:
+        return 4u;
+    case BIOME_CELESTIAL_RUINS:
+        return 6u;
+    default:
+        return 3u;
+    }
+}
+
+static uint8_t dirt_depth_for_biome(Biome biome)
+{
+    switch (biome) {
+    case BIOME_ROOTWOOD_GROVE:
+        return 5u;
+    case BIOME_STONE_BELT:
+        return 2u;
+    case BIOME_CELESTIAL_RUINS:
+        return 2u;
+    default:
+        return 4u;
+    }
 }
 
 static uint8_t tree_tile_at(uint16_t x, uint8_t y)
@@ -97,6 +169,7 @@ static uint8_t tree_tile_at(uint16_t x, uint8_t y)
 uint8_t chunk_generate_tile(uint8_t chunk_index, uint8_t local_x, uint8_t y)
 {
     uint16_t x = (uint16_t)(((uint16_t)chunk_index * CHUNK_WIDTH_TILES) + local_x);
+    Biome biome = world_biome_at_x(x);
     uint8_t surface = column_surface(x);
     uint8_t tree_tile = tree_tile_at(x, y);
     uint8_t seed_lo = (uint8_t)generation_seed;
@@ -105,6 +178,8 @@ uint8_t chunk_generate_tile(uint8_t chunk_index, uint8_t local_x, uint8_t y)
                                     seed_lo + (seed_hi * 5u)) & 31u);
     uint8_t ore_noise = (uint8_t)((x * 19u + y * 11u + chunk_index * 5u +
                                    (seed_lo * 3u) + seed_hi) & 63u);
+    uint8_t cave_threshold = cave_threshold_for_biome(biome);
+    uint8_t dirt_depth = dirt_depth_for_biome(biome);
 
     if (tree_tile != TILE_EMPTY) {
         return tree_tile;
@@ -115,28 +190,45 @@ uint8_t chunk_generate_tile(uint8_t chunk_index, uint8_t local_x, uint8_t y)
     }
 
     if (y == surface) {
-        return TILE_GRASS;
+        return surface_tile_for_biome(biome, cave_noise);
     }
 
     if (y > (uint8_t)(surface + 2u) &&
         y < (uint8_t)(WORLD_HEIGHT_TILES - 1u) &&
-        cave_noise < 3u) {
+        cave_noise < cave_threshold) {
         return TILE_EMPTY;
     }
 
-    if (y < (uint8_t)(surface + 4u)) {
+    if (biome == BIOME_STONE_BELT &&
+        y <= (uint8_t)(surface + 3u) &&
+        ((x + y + seed_hi) & 3u) != 0u) {
+        return TILE_STONE;
+    }
+
+    if (y < (uint8_t)(surface + dirt_depth)) {
         return TILE_DIRT;
     }
 
-    if (y > (uint8_t)(surface + 4u) && ore_noise >= 1u && ore_noise <= 3u) {
+    if (biome == BIOME_CELESTIAL_RUINS &&
+        y > (uint8_t)(surface + 2u) &&
+        (ore_noise == 0u || ore_noise == 1u)) {
         return TILE_IRON;
     }
 
-    if (y > (uint8_t)(surface + 3u) && ore_noise >= 4u && ore_noise <= 8u) {
+    if (y > (uint8_t)(surface + 4u) &&
+        ore_noise >= 1u &&
+        ore_noise <= (biome == BIOME_STONE_BELT ? 5u : 3u)) {
+        return TILE_IRON;
+    }
+
+    if (y > (uint8_t)(surface + 3u) &&
+        ore_noise >= 4u &&
+        ore_noise <= (biome == BIOME_STONE_BELT ? 12u : 8u)) {
         return TILE_COPPER;
     }
 
-    if (ore_noise >= 9u && ore_noise <= 16u) {
+    if (ore_noise >= 9u &&
+        ore_noise <= (biome == BIOME_STONE_BELT || biome == BIOME_CELESTIAL_RUINS ? 20u : 16u)) {
         return TILE_COAL;
     }
 

@@ -1,6 +1,5 @@
 #include <gb/gb.h>
 #include "audio.h"
-#include "collision.h"
 #include "mining.h"
 #include "player.h"
 #include "tile_defs.h"
@@ -26,17 +25,57 @@
 
 static MiningState mining_state;
 
-static uint8_t player_aabb_solid_at(int16_t x, int16_t y)
+static uint8_t player_point_blocking_at(int16_t x,
+                                        int16_t y,
+                                        int16_t prev_bottom,
+                                        int8_t vertical_step,
+                                        uint8_t dropping_down,
+                                        uint8_t is_bottom_point)
 {
-    return collision_aabb_solid((int16_t)(x + PLAYER_HITBOX_X_OFFSET),
-                                (int16_t)(y + PLAYER_HITBOX_Y_OFFSET),
-                                PLAYER_HITBOX_WIDTH,
-                                PLAYER_HITBOX_HEIGHT);
+    uint8_t tile;
+    uint8_t ty;
+    int16_t tile_top;
+
+    if (x < 0 || y < 0) {
+        return 1u;
+    }
+
+    tile = world_get_tile_for_collision((uint16_t)(x >> 3), (uint8_t)(y >> 3));
+
+    if (tile == TILE_PLATFORM) {
+        if (!is_bottom_point || vertical_step <= 0 || dropping_down) {
+            return 0u;
+        }
+
+        ty = (uint8_t)(y >> 3);
+        tile_top = (int16_t)(ty << 3);
+        return prev_bottom <= tile_top && y >= tile_top;
+    }
+
+    return world_is_solid_tile(tile);
+}
+
+static uint8_t player_aabb_blocking_at(int16_t x,
+                                       int16_t y,
+                                       int16_t prev_y,
+                                       int8_t vertical_step,
+                                       uint8_t dropping_down)
+{
+    int16_t hitbox_x = (int16_t)(x + PLAYER_HITBOX_X_OFFSET);
+    int16_t hitbox_y = (int16_t)(y + PLAYER_HITBOX_Y_OFFSET);
+    int16_t hitbox_right = (int16_t)(hitbox_x + PLAYER_HITBOX_WIDTH - 1);
+    int16_t hitbox_bottom = (int16_t)(hitbox_y + PLAYER_HITBOX_HEIGHT - 1);
+    int16_t prev_bottom = (int16_t)(prev_y + PLAYER_HITBOX_Y_OFFSET + PLAYER_HITBOX_HEIGHT - 1);
+
+    return player_point_blocking_at(hitbox_x, hitbox_y, prev_bottom, vertical_step, dropping_down, 0u) ||
+           player_point_blocking_at(hitbox_right, hitbox_y, prev_bottom, vertical_step, dropping_down, 0u) ||
+           player_point_blocking_at(hitbox_x, hitbox_bottom, prev_bottom, vertical_step, dropping_down, 1u) ||
+           player_point_blocking_at(hitbox_right, hitbox_bottom, prev_bottom, vertical_step, dropping_down, 1u);
 }
 
 static uint8_t has_ground_below(int16_t x, int16_t y)
 {
-    return player_aabb_solid_at(x, (int16_t)(y + 1));
+    return player_aabb_blocking_at(x, (int16_t)(y + 1), y, 1, 0u);
 }
 
 static uint8_t try_step_up(Player *player, int8_t step)
@@ -51,7 +90,7 @@ static uint8_t try_step_up(Player *player, int8_t step)
     for (ascent = 1u; ascent <= MAX_STEP_UP; ++ascent) {
         int16_t next_y = (int16_t)(player->y - ascent);
 
-        if (!player_aabb_solid_at(next_x, next_y) &&
+        if (!player_aabb_blocking_at(next_x, next_y, player->y, 0, 0u) &&
             has_ground_below(next_x, next_y)) {
             player->x = next_x;
             player->y = next_y;
@@ -71,7 +110,7 @@ static void move_h(Player *player)
     while (remaining != 0) {
         step = remaining > 0 ? 1 : -1;
 
-        if (player_aabb_solid_at((int16_t)(player->x + step), player->y)) {
+        if (player_aabb_blocking_at((int16_t)(player->x + step), player->y, player->y, 0, 0u)) {
             if (try_step_up(player, step)) {
                 remaining = (int8_t)(remaining - step);
                 continue;
@@ -86,7 +125,7 @@ static void move_h(Player *player)
     }
 }
 
-static void move_v(Player *player)
+static void move_v(Player *player, uint8_t dropping_down)
 {
     int8_t remaining = (int8_t)player->vy;
     int8_t step;
@@ -96,7 +135,11 @@ static void move_v(Player *player)
     while (remaining != 0) {
         step = remaining > 0 ? 1 : -1;
 
-        if (player_aabb_solid_at(player->x, (int16_t)(player->y + step))) {
+        if (player_aabb_blocking_at(player->x,
+                                    (int16_t)(player->y + step),
+                                    player->y,
+                                    step,
+                                    dropping_down)) {
             if (step > 0) {
                 player->grounded = 1u;
 
@@ -220,8 +263,23 @@ static void update_aim_state(Player *player, const InputState *input, const Inve
 static void use_placement(Player *player, const InputState *input, Inventory *inventory)
 {
     uint8_t tile;
+    uint8_t target_tile;
 
     if (!(input->pressed & J_B) || (input->current & J_A)) {
+        return;
+    }
+
+    target_tile = world_get_tile_or_empty(player->aim_tx, player->aim_ty);
+
+    if (world_is_door_tile(target_tile)) {
+        if (world_toggle_door(player->aim_tx, player->aim_ty)) {
+            player->action_error_timer = 0u;
+            audio_play_place();
+        } else {
+            player->action_error_timer = PLAYER_ACTION_ERROR_TIME;
+            audio_play_error();
+        }
+
         return;
     }
 
@@ -286,7 +344,7 @@ void player_damage(Player *player, int8_t knockback)
     }
 }
 
-void player_update(Player *player, const InputState *input, Inventory *inventory)
+void player_update(Player *player, const InputState *input, Inventory *inventory, ItemDrop *drops)
 {
     uint8_t using_tool = (uint8_t)(input->current & (J_A | J_B));
 
@@ -325,13 +383,13 @@ void player_update(Player *player, const InputState *input, Inventory *inventory
     }
 
     move_h(player);
-    move_v(player);
+    move_v(player, (uint8_t)(input->current & J_DOWN));
 
     if (player->invuln_timer != 0u && player->vx != 0) {
         player->vx = player->vx > 0 ? (int16_t)(player->vx - 1) : (int16_t)(player->vx + 1);
     }
 
     update_aim_state(player, input, inventory);
-    mining_update(&mining_state, player, input, inventory);
+    mining_update(&mining_state, player, input, inventory, drops);
     use_placement(player, input, inventory);
 }

@@ -8,13 +8,21 @@ The prototype uses a 128 by 32 logical world. Each tile is one byte: empty, dirt
 
 The logical world is divided into 16 chunks of 8 columns. `chunk.c` procedurally generates surface height, caves, trees, ore pockets, and basic underground layers per chunk from `WORLD_DEFAULT_SEED`. `chunk_tick()` centers the active WRAM window on the chunk under the camera center, keeping that chunk plus two chunks on either side when the world edges allow it. Unloaded chunks are reconstructed from the generator and patched with remembered mining/placement changes. The current changed-tile log is the WRAM version of the eventual battery SRAM save payload.
 
+## Biomes
+
+Biomes are currently procedural/generative only, with no extra tile IDs. `world_biome_at_x()` divides the 128-column world into four 32-column regions: Meadow, Rootwood Grove, Stone Belt, and Celestial Ruins. `chunk_generate_tile()` uses the biome to vary surface height, tree frequency, dirt depth, cave density, surface material, and ore frequency.
+
 ## Collision
 
 Collision is tile-based. The player sprite is 8 by 16 pixels, but movement uses a 6 by 8 pixel hitbox on the lower half of the sprite so decorative head pixels do not block tight gaps. Movement tests the box corners against solid world tiles before applying horizontal or vertical movement.
 
+Platforms are handled as a player-specific collision case instead of a global solid tile rule. They do not block horizontal movement or upward movement. During downward movement they block only when the lower hitbox points cross the platform's top edge from above, and holding Down disables that platform collision so the player can drop through.
+
 ## Placement
 
 `world_can_place_tile()` owns block placement rules. Normal blocks require an empty target with at least one solid neighbor. Torches require empty space plus solid support on the left, right, or below, and other torches do not count as support. Workbenches remain one tile wide for now and require an empty target with solid floor underneath. Player overlap is checked from `player.c` so world placement helpers stay independent of actors.
+
+Doors are 1x2 multi-tile blocks. The placement target is the bottom tile: the target and tile above must be empty, with solid floor below. Closed doors use top/bottom tiles and are solid; open doors use top/bottom open tiles and are non-solid. Pressing B while aiming at any door tile toggles both halves, and mining either half removes the whole door.
 
 ## Health
 
@@ -34,7 +42,11 @@ Tool progression is a single byte on `Inventory`. There is no equipment UI or du
 
 ## Mining
 
-`mining.c` owns held-button mining state. Holding A on the same target increments progress until the tile's mining time is reached, then the block is removed and added to inventory. Moving the target, releasing A, hitting an empty tile, lacking the required tool level, or having no inventory room resets mining. The target cursor uses extra sprite patterns to show early and late progress instead of drawing crack overlays into the background.
+`mining.c` owns held-button mining state. Holding A on the same target increments progress until the tile's mining time is reached, then the block is removed and converted into a pickup drop. Moving the target, releasing A, hitting an empty tile, lacking the required tool level, or having no free drop slot resets mining. The target cursor uses extra sprite patterns to show early and late progress instead of drawing crack overlays into the background.
+
+## Item Drops
+
+`item_drop.c` keeps a small fixed pool of pickup entities. Drops use one 8x16 sprite each with the lower tile transparent, fall vertically until they touch solid ground, and try to auto-pick up when overlapping the player. If the inventory is full, the drop stays in the world until picked up later or its lifetime expires. The drop pool is deliberately small so mining cannot flood OAM or WRAM.
 
 ## Render Loop
 

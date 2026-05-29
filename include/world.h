@@ -21,6 +21,13 @@ typedef struct ChangedTile {
     uint8_t tile;
 } ChangedTile;
 
+typedef enum Biome {
+    BIOME_MEADOW = 0u,
+    BIOME_ROOTWOOD_GROVE,
+    BIOME_STONE_BELT,
+    BIOME_CELESTIAL_RUINS
+} Biome;
+
 void world_init(void);
 void world_set_seed(uint16_t seed);
 uint16_t world_seed(void);
@@ -37,11 +44,16 @@ void world_set_tile(uint16_t tx, uint8_t ty, uint8_t tile);
 uint8_t world_stream_to_chunk(uint8_t start_chunk);
 bool world_take_dirty_tile(uint16_t *tx, uint8_t *ty);
 bool world_is_solid_tile(uint8_t tile);
+bool world_is_door_tile(uint8_t tile);
 bool world_is_solid_at_pixel(int16_t x, int16_t y);
 uint8_t world_mine_at_pixel(int16_t x, int16_t y);
 bool world_place_at_pixel(int16_t x, int16_t y, uint8_t tile);
 bool world_can_place_tile(uint16_t tx, uint8_t ty, uint8_t tile);
 bool world_place_tile(uint16_t tx, uint8_t ty, uint8_t tile);
+bool world_place_door(uint16_t tx, uint8_t bottom_ty);
+bool world_toggle_door(uint16_t tx, uint8_t ty);
+bool world_remove_multitile_at(uint16_t tx, uint8_t ty);
+Biome world_biome_at_x(uint16_t x);
 bool world_has_tile_near_pixel(int16_t x, int16_t y, uint8_t tile, uint8_t radius);
 
 #endif

@@ -215,6 +215,23 @@ bool world_restore_changed_tile(const ChangedTile *change)
     return true;
 }
 
+Biome world_biome_at_x(uint16_t x)
+{
+    if (x < 32u) {
+        return BIOME_MEADOW;
+    }
+
+    if (x < 64u) {
+        return BIOME_ROOTWOOD_GROVE;
+    }
+
+    if (x < 96u) {
+        return BIOME_STONE_BELT;
+    }
+
+    return BIOME_CELESTIAL_RUINS;
+}
+
 uint8_t world_get_tile_or_empty(uint16_t tx, uint8_t ty)
 {
     if (tx >= WORLD_WIDTH_TILES || ty >= WORLD_HEIGHT_TILES) {
@@ -284,7 +301,18 @@ bool world_take_dirty_tile(uint16_t *tx, uint8_t *ty)
 
 bool world_is_solid_tile(uint8_t tile)
 {
-    return tile != TILE_EMPTY && tile != TILE_TORCH;
+    return tile != TILE_EMPTY &&
+           tile != TILE_TORCH &&
+           tile != TILE_DOOR_OPEN_TOP &&
+           tile != TILE_DOOR_OPEN_BOTTOM;
+}
+
+bool world_is_door_tile(uint8_t tile)
+{
+    return tile == TILE_DOOR_CLOSED_TOP ||
+           tile == TILE_DOOR_CLOSED_BOTTOM ||
+           tile == TILE_DOOR_OPEN_TOP ||
+           tile == TILE_DOOR_OPEN_BOTTOM;
 }
 
 bool world_is_solid_at_pixel(int16_t x, int16_t y)
@@ -389,6 +417,32 @@ static bool world_workbench_has_floor(uint16_t tx, uint8_t ty)
            world_is_solid_tile(world_get_tile_or_empty(tx, (uint8_t)(ty + 1u)));
 }
 
+static uint8_t world_door_bottom_ty(uint8_t tile, uint8_t ty)
+{
+    if (tile == TILE_DOOR_CLOSED_TOP || tile == TILE_DOOR_OPEN_TOP) {
+        return (uint8_t)(ty + 1u);
+    }
+
+    return ty;
+}
+
+static bool world_can_place_door(uint16_t tx, uint8_t bottom_ty)
+{
+    if (tx >= WORLD_WIDTH_TILES ||
+        bottom_ty == 0u ||
+        bottom_ty >= WORLD_HEIGHT_TILES ||
+        (uint8_t)(bottom_ty + 1u) >= WORLD_HEIGHT_TILES) {
+        return false;
+    }
+
+    if (world_get_tile_or_empty(tx, bottom_ty) != TILE_EMPTY ||
+        world_get_tile_or_empty(tx, (uint8_t)(bottom_ty - 1u)) != TILE_EMPTY) {
+        return false;
+    }
+
+    return world_is_solid_tile(world_get_tile_or_empty(tx, (uint8_t)(bottom_ty + 1u)));
+}
+
 bool world_can_place_tile(uint16_t tx, uint8_t ty, uint8_t tile)
 {
     if (tx >= WORLD_WIDTH_TILES || ty >= WORLD_HEIGHT_TILES || tile == TILE_EMPTY) {
@@ -399,7 +453,15 @@ bool world_can_place_tile(uint16_t tx, uint8_t ty, uint8_t tile)
         return false;
     }
 
-    if (tile == TILE_TORCH) {
+    if (tile == TILE_DOOR ||
+        tile == TILE_DOOR_CLOSED_BOTTOM ||
+        tile == TILE_DOOR_CLOSED_TOP ||
+        tile == TILE_DOOR_OPEN_BOTTOM ||
+        tile == TILE_DOOR_OPEN_TOP) {
+        if (!world_can_place_door(tx, ty)) {
+            return false;
+        }
+    } else if (tile == TILE_TORCH) {
         if (!world_torch_has_support(tx, ty)) {
             return false;
         }
@@ -420,7 +482,84 @@ bool world_place_tile(uint16_t tx, uint8_t ty, uint8_t tile)
         return false;
     }
 
+    if (tile == TILE_DOOR ||
+        tile == TILE_DOOR_CLOSED_BOTTOM ||
+        tile == TILE_DOOR_CLOSED_TOP ||
+        tile == TILE_DOOR_OPEN_BOTTOM ||
+        tile == TILE_DOOR_OPEN_TOP) {
+        return world_place_door(tx, ty);
+    }
+
     world_set_tile(tx, ty, tile);
+    return true;
+}
+
+bool world_place_door(uint16_t tx, uint8_t bottom_ty)
+{
+    if (!world_can_place_door(tx, bottom_ty)) {
+        return false;
+    }
+
+    world_set_tile(tx, (uint8_t)(bottom_ty - 1u), TILE_DOOR_CLOSED_TOP);
+    world_set_tile(tx, bottom_ty, TILE_DOOR_CLOSED_BOTTOM);
+    return true;
+}
+
+bool world_toggle_door(uint16_t tx, uint8_t ty)
+{
+    uint8_t tile = world_get_tile_or_empty(tx, ty);
+    uint8_t bottom_ty;
+    uint8_t bottom_tile;
+
+    if (!world_is_door_tile(tile)) {
+        return false;
+    }
+
+    bottom_ty = world_door_bottom_ty(tile, ty);
+
+    if (bottom_ty == 0u || bottom_ty >= WORLD_HEIGHT_TILES) {
+        return false;
+    }
+
+    bottom_tile = world_get_tile_or_empty(tx, bottom_ty);
+
+    if (bottom_tile == TILE_DOOR_CLOSED_BOTTOM) {
+        world_set_tile(tx, (uint8_t)(bottom_ty - 1u), TILE_DOOR_OPEN_TOP);
+        world_set_tile(tx, bottom_ty, TILE_DOOR_OPEN_BOTTOM);
+        return true;
+    }
+
+    if (bottom_tile == TILE_DOOR_OPEN_BOTTOM) {
+        world_set_tile(tx, (uint8_t)(bottom_ty - 1u), TILE_DOOR_CLOSED_TOP);
+        world_set_tile(tx, bottom_ty, TILE_DOOR_CLOSED_BOTTOM);
+        return true;
+    }
+
+    return false;
+}
+
+bool world_remove_multitile_at(uint16_t tx, uint8_t ty)
+{
+    uint8_t tile = world_get_tile_or_empty(tx, ty);
+    uint8_t bottom_ty;
+
+    if (!world_is_door_tile(tile)) {
+        if (tile == TILE_EMPTY) {
+            return false;
+        }
+
+        world_set_tile(tx, ty, TILE_EMPTY);
+        return true;
+    }
+
+    bottom_ty = world_door_bottom_ty(tile, ty);
+
+    if (bottom_ty == 0u || bottom_ty >= WORLD_HEIGHT_TILES) {
+        return false;
+    }
+
+    world_set_tile(tx, (uint8_t)(bottom_ty - 1u), TILE_EMPTY);
+    world_set_tile(tx, bottom_ty, TILE_EMPTY);
     return true;
 }
 

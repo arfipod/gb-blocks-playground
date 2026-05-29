@@ -71,9 +71,10 @@ See `docs/SETUP.md` for WSLg troubleshooting notes.
 - Left / Right: move.
 - Up: jump.
 - Hold A: mine the aimed block and add it to the inventory when it breaks.
-- B: place the selected inventory block.
+- B: place the selected inventory block, or open/close the aimed door.
 - Start: select the next inventory slot.
 - Hold Up or Down while using A/B to aim above or below.
+- Hold Down while standing on a platform to drop through it.
 - Select: open or close the crafting menu.
 - In the crafting menu, Left / Right / Up / Down chooses a recipe, A crafts, and B closes.
 
@@ -93,6 +94,10 @@ Current recipes:
 - Iron -> better pickaxe, near a workbench.
 
 The current tool system is global and has no durability. Hand mining works for soft blocks; stone and ores need the basic stone pickaxe. Blocks have mining time: dirt breaks quickly, stone is slower, and ores take longer.
+
+Mined blocks become small pickup drops in the world. Drops fall until they hit solid ground, auto-pick when the player overlaps them, and remain on the ground if the inventory is full.
+
+The world is split into four lightweight procedural biomes: Meadow, Rootwood Grove, Stone Belt, and Celestial Ruins. They reuse the same tile set but vary terrain height, trees, caves, surface material, and ore density.
 
 ## Roadmap
 

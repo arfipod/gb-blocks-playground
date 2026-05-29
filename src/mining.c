@@ -26,8 +26,12 @@ static uint8_t tile_base_mining_time(uint8_t tile)
     case TILE_WOOD:
     case TILE_PLANK:
     case TILE_PLATFORM:
-    case TILE_DOOR:
         return 18u;
+    case TILE_DOOR_CLOSED_TOP:
+    case TILE_DOOR_CLOSED_BOTTOM:
+    case TILE_DOOR_OPEN_TOP:
+    case TILE_DOOR_OPEN_BOTTOM:
+        return 24u;
     case TILE_WORKBENCH:
         return 24u;
     case TILE_STONE:
@@ -91,7 +95,8 @@ void mining_init(MiningState *mining)
 void mining_update(MiningState *mining,
                    Player *player,
                    const InputState *input,
-                   Inventory *inventory)
+                   Inventory *inventory,
+                   ItemDrop *drops)
 {
     uint8_t tile;
     uint8_t item;
@@ -118,7 +123,7 @@ void mining_update(MiningState *mining,
     }
 
     if (!inventory_can_mine_tile(inventory, tile) ||
-        (item != ITEM_NONE && !inventory_can_add_item(inventory, item, 1u))) {
+        (item != ITEM_NONE && !item_drops_has_free_slot(drops))) {
         mining_reset(mining);
 
         if (input->pressed & J_A) {
@@ -150,13 +155,16 @@ void mining_update(MiningState *mining,
     mining_apply_progress_flags(mining, player);
 
     if (mining->progress >= mining->required) {
-        tile = world_mine_at_pixel((int16_t)(player->aim_tx << 3),
-                                   (int16_t)(player->aim_ty << 3));
+        item = inventory_item_for_tile(tile);
 
-        if (tile != TILE_EMPTY) {
-            inventory_add_block(inventory, tile);
+        if (item == ITEM_NONE ||
+            item_drops_spawn(drops, mining->tx, mining->ty, item, 1u)) {
+            world_remove_multitile_at(mining->tx, mining->ty);
             player->action_error_timer = 0u;
             audio_play_mine();
+        } else {
+            player->action_error_timer = MINING_ACTION_ERROR_TIME;
+            audio_play_error();
         }
 
         mining_reset(mining);

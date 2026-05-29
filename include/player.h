@@ -6,6 +6,8 @@
 #include "inventory.h"
 #include "input.h"
 
+typedef struct ItemDrop ItemDrop;
+
 #define PLAYER_WIDTH 8
 #define PLAYER_HEIGHT 16
 #define PLAYER_MAX_HP 5u
@@ -33,7 +35,7 @@ typedef struct Player {
 } Player;
 
 void player_init(Player *player);
-void player_update(Player *player, const InputState *input, Inventory *inventory);
+void player_update(Player *player, const InputState *input, Inventory *inventory, ItemDrop *drops);
 void player_respawn(Player *player);
 void player_damage(Player *player, int8_t knockback);
 bool player_overlaps_aabb(const Player *player, int16_t x, int16_t y, uint8_t w, uint8_t h);

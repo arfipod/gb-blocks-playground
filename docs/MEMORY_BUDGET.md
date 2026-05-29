@@ -39,6 +39,7 @@ The prototype now streams a smaller active chunk window in WRAM:
 active world tiles = 5 chunks x 8 columns x 32 rows = 1280 bytes
 changed tile log   = 128 entries x about 4 bytes = about 512 bytes
 dirty tile queue   = 32 entries x about 3 bytes = about 96 bytes
+item drops         = 8 entries x about 12 bytes = about 96 bytes
 ```
 
 Rendering also keeps CPU-side tile buffers. The background renderer updates one column at a time:
@@ -52,7 +53,7 @@ win_buffer          = 20 x 18 = 360 bytes
 Those main arrays are roughly:
 
 ```text
-1280 + 512 + 96 + 32 + 16 + 360 = 2296 bytes
+1280 + 512 + 96 + 96 + 32 + 16 + 360 = 2392 bytes
 ```
 
 That is about 28% of DMG WRAM before stack, player state, camera state, inventory, library globals, enemies, dropped items, or a real save system.

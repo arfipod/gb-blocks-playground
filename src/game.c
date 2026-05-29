@@ -6,6 +6,7 @@
 #include "game.h"
 #include "input.h"
 #include "inventory.h"
+#include "item_drop.h"
 #include "player.h"
 #include "render.h"
 #include "world.h"
@@ -13,6 +14,7 @@
 static InputState input;
 static Player player;
 static Enemy enemies[ENEMY_MAX_ACTIVE];
+static ItemDrop drops[ITEM_DROP_MAX_COUNT];
 static Camera camera;
 static Inventory inventory;
 static uint8_t menu_open;
@@ -58,6 +60,7 @@ void game_init(void)
     inventory_init(&inventory);
     player_init(&player);
     enemies_init(enemies);
+    item_drops_init(drops);
     camera.x = 0u;
     camera.y = 0u;
     menu_open = 0u;
@@ -138,10 +141,11 @@ void game_update_logic(void)
 
     previous_inventory = inventory;
     previous_hp = player.hp;
-    player_update(&player, &input, &inventory);
+    player_update(&player, &input, &inventory, drops);
     camera_update(&camera, &player);
     chunk_tick(camera.x);
     enemies_update(enemies, &camera, &player);
+    item_drops_update(drops, &player, &inventory);
 
     if (inventory_changed(&previous_inventory, &inventory) ||
         previous_hp != player.hp) {
@@ -157,7 +161,7 @@ void game_render_commit(void)
             menu_dirty = 0u;
         }
 
-        render_frame(&camera, &player, enemies);
+        render_frame(&camera, &player, enemies, drops);
         return;
     }
 
@@ -168,5 +172,5 @@ void game_render_commit(void)
         hud_dirty = 0u;
     }
 
-    render_frame(&camera, &player, enemies);
+    render_frame(&camera, &player, enemies, drops);
 }

@@ -116,7 +116,7 @@ uint8_t inventory_item_tile(uint8_t item)
     case ITEM_PLATFORM:
         return TILE_PLATFORM;
     case ITEM_DOOR:
-        return TILE_DOOR;
+        return TILE_DOOR_CLOSED_BOTTOM;
     case ITEM_COAL:
         return TILE_COAL;
     case ITEM_COPPER:
@@ -147,7 +147,10 @@ uint8_t inventory_item_for_tile(uint8_t tile)
         return ITEM_TORCH;
     case TILE_PLATFORM:
         return ITEM_PLATFORM;
-    case TILE_DOOR:
+    case TILE_DOOR_CLOSED_TOP:
+    case TILE_DOOR_CLOSED_BOTTOM:
+    case TILE_DOOR_OPEN_TOP:
+    case TILE_DOOR_OPEN_BOTTOM:
         return ITEM_DOOR;
     case TILE_COAL:
         return ITEM_COAL;

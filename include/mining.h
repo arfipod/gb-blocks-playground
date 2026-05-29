@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include "input.h"
 #include "inventory.h"
+#include "item_drop.h"
 #include "player.h"
 
 typedef struct MiningState {
@@ -19,6 +20,7 @@ void mining_init(MiningState *mining);
 void mining_update(MiningState *mining,
                    Player *player,
                    const InputState *input,
-                   Inventory *inventory);
+                   Inventory *inventory,
+                   ItemDrop *drops);
 
 #endif

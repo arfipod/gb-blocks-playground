@@ -11,6 +11,12 @@
 #define SPLASH_ROBOT_X 7u
 #define SPLASH_ROBOT_Y_TOP 5u
 #define SPLASH_ROBOT_Y_LOW 6u
+#define SPLASH_PLAYER_TILE_BASE 128u
+#define SPLASH_PLAYER_WIDTH 1u
+#define SPLASH_PLAYER_HEIGHT 2u
+#define SPLASH_PLAYER_X 10u
+#define SPLASH_PLAYER_Y_TOP 8u
+#define SPLASH_PLAYER_Y_LOW 9u
 #define SPLASH_MENU_NEW_GAME 0u
 #define SPLASH_MENU_CONTINUE 1u
 
@@ -61,6 +67,19 @@ static const uint8_t splash_robot_map[SPLASH_ROBOT_WIDTH * SPLASH_ROBOT_HEIGHT] 
     SPLASH_ROBOT_TILE_BASE + 25u, SPLASH_ROBOT_TILE_BASE + 26u, SPLASH_ROBOT_TILE_BASE + 27u, SPLASH_ROBOT_TILE_BASE + 28u, SPLASH_ROBOT_TILE_BASE + 29u
 };
 
+static const uint8_t splash_player_tiles[SPLASH_PLAYER_WIDTH * SPLASH_PLAYER_HEIGHT * 16u] = {
+    0x3C,0x00, 0x7E,0x00, 0xC3,0x3C, 0xC3,0x7E,
+    0xDB,0x3C, 0x66,0x18, 0x3C,0x00, 0x00,0x18,
+
+    0x24,0x18, 0x42,0x3C, 0x81,0x7E, 0x81,0x3C,
+    0x24,0x18, 0x24,0x00, 0x42,0x00, 0xC3,0x00
+};
+
+static const uint8_t splash_player_map[SPLASH_PLAYER_WIDTH * SPLASH_PLAYER_HEIGHT] = {
+    SPLASH_PLAYER_TILE_BASE + 0u,
+    SPLASH_PLAYER_TILE_BASE + 1u
+};
+
 static bool splash_has_save(void)
 {
     return false;
@@ -68,9 +87,9 @@ static bool splash_has_save(void)
 
 static void load_splash_robot_tiles(void)
 {
-    set_bkg_data(SPLASH_ROBOT_TILE_BASE,
-                 SPLASH_ROBOT_WIDTH * SPLASH_ROBOT_HEIGHT,
-                 splash_robot_tiles);
+    set_bkg_data(SPLASH_PLAYER_TILE_BASE,
+                 SPLASH_PLAYER_WIDTH * SPLASH_PLAYER_HEIGHT,
+                 splash_player_tiles);
 }
 
 static void draw_splash_ground(void)
@@ -85,15 +104,15 @@ static void clear_splash_robot(uint8_t y)
 {
     uint8_t row;
 
-    for (row = 0u; row != SPLASH_ROBOT_HEIGHT; ++row) {
-        gotoxy(SPLASH_ROBOT_X, y + row);
-        printf("     ");
+    for (row = 0u; row != SPLASH_PLAYER_HEIGHT; ++row) {
+        gotoxy(SPLASH_PLAYER_X, y + row);
+        printf(" ");
     }
 }
 
 static void draw_splash_robot(uint8_t y)
 {
-    set_bkg_tiles(SPLASH_ROBOT_X, y, SPLASH_ROBOT_WIDTH, SPLASH_ROBOT_HEIGHT, splash_robot_map);
+    set_bkg_tiles(SPLASH_PLAYER_X, y, SPLASH_PLAYER_WIDTH, SPLASH_PLAYER_HEIGHT, splash_player_map);
 }
 
 static void draw_title_menu(uint8_t selected, bool has_save)
@@ -117,7 +136,7 @@ static SplashChoice run_title_menu(void)
     uint8_t selected = SPLASH_MENU_NEW_GAME;
     uint8_t previous_joypad = joypad();
     uint8_t frame = 0u;
-    uint8_t robot_y = SPLASH_ROBOT_Y_TOP;
+    uint8_t robot_y = SPLASH_PLAYER_Y_TOP;
     uint8_t next_robot_y;
     bool has_save = splash_has_save();
 
@@ -145,7 +164,7 @@ static SplashChoice run_title_menu(void)
             draw_title_menu(selected, has_save);
         }
 
-        next_robot_y = ((frame & 0x20u) != 0u) ? SPLASH_ROBOT_Y_LOW : SPLASH_ROBOT_Y_TOP;
+        next_robot_y = ((frame & 0x20u) != 0u) ? SPLASH_PLAYER_Y_LOW : SPLASH_PLAYER_Y_TOP;
         if (next_robot_y != robot_y) {
             clear_splash_robot(robot_y);
             draw_splash_ground();
@@ -185,7 +204,7 @@ SplashChoice splash_show(void)
     printf("-'        .      ");
 
     load_splash_robot_tiles();
-    draw_splash_robot(SPLASH_ROBOT_Y_TOP);
+    draw_splash_robot(SPLASH_PLAYER_Y_TOP);
     draw_splash_ground();
 
     gotoxy(4u, 16u);
