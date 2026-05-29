@@ -11,8 +11,12 @@
 #define HUD_HEIGHT 3u
 #define HUD_Y 120u
 
-static uint8_t bg_buffer[BG_BUFFER_WIDTH * WORLD_HEIGHT_TILES];
+static uint8_t bg_buffer[WORLD_HEIGHT_TILES];
 static uint8_t win_buffer[WIN_WIDTH * WIN_HEIGHT];
+static uint16_t rendered_origin_tile;
+static uint8_t world_rendered;
+
+static void render_world_column(uint16_t world_x);
 
 const uint8_t terrain_tiles[TILE_COUNT * 16u] = {
     // 0: empty
@@ -82,8 +86,10 @@ void render_init(void)
     DISPLAY_OFF;
     SPRITES_8x16;
     set_bkg_data(0u, TILE_COUNT, terrain_tiles);
-    set_sprite_data(TILE_COUNT, PLAYER_TILE_COUNT, player_tiles);
-    set_sprite_tile(0u, TILE_COUNT);
+    set_sprite_data(PLAYER_TILE_BASE, PLAYER_TILE_COUNT, player_tiles);
+    set_sprite_tile(0u, PLAYER_TILE_BASE);
+    rendered_origin_tile = 0u;
+    world_rendered = 0u;
     move_win(7u, HUD_Y);
     SHOW_WIN;
     SHOW_BKG;
@@ -133,17 +139,73 @@ static void draw_inventory_slots(const Inventory *inventory, uint8_t y)
 
 void render_world(const Camera *camera)
 {
-    uint8_t x;
-    uint8_t y;
+    int16_t delta;
+    uint16_t dirty_tx;
     uint16_t origin_tile = (uint16_t)(camera->x >> 3);
+    uint8_t dirty_ty;
 
-    for (y = 0u; y < WORLD_HEIGHT_TILES; ++y) {
+    if (!world_rendered) {
+        uint8_t x;
+
         for (x = 0u; x < BG_BUFFER_WIDTH; ++x) {
-            bg_buffer[(y * BG_BUFFER_WIDTH) + x] = world_get_tile((uint16_t)(origin_tile + x), y);
+            render_world_column((uint16_t)(origin_tile + x));
+        }
+
+        rendered_origin_tile = origin_tile;
+        world_rendered = 1u;
+
+        while (world_take_dirty_tile(&dirty_tx, &dirty_ty)) {
+            /* The full redraw already covered queued world_init changes. */
+        }
+
+        return;
+    }
+
+    delta = (int16_t)(origin_tile - rendered_origin_tile);
+
+    if (delta >= (int16_t)BG_BUFFER_WIDTH || delta <= -(int16_t)BG_BUFFER_WIDTH) {
+        uint8_t x;
+
+        for (x = 0u; x < BG_BUFFER_WIDTH; ++x) {
+            render_world_column((uint16_t)(origin_tile + x));
+        }
+    } else if (delta > 0) {
+        uint8_t x;
+
+        for (x = 0u; x < (uint8_t)delta; ++x) {
+            render_world_column((uint16_t)(rendered_origin_tile + BG_BUFFER_WIDTH + x));
+        }
+    } else if (delta < 0) {
+        uint8_t x;
+        uint8_t count = (uint8_t)-delta;
+
+        for (x = 0u; x < count; ++x) {
+            render_world_column((uint16_t)(origin_tile + x));
         }
     }
 
-    set_bkg_tiles(0u, 0u, BG_BUFFER_WIDTH, WORLD_HEIGHT_TILES, bg_buffer);
+    rendered_origin_tile = origin_tile;
+
+    while (world_take_dirty_tile(&dirty_tx, &dirty_ty)) {
+        if (dirty_ty < WORLD_HEIGHT_TILES &&
+            dirty_tx >= origin_tile &&
+            dirty_tx < (uint16_t)(origin_tile + BG_BUFFER_WIDTH)) {
+            uint8_t tile = world_get_tile_or_empty(dirty_tx, dirty_ty);
+            set_bkg_tiles((uint8_t)(dirty_tx & 31u), dirty_ty, 1u, 1u, &tile);
+        }
+    }
+}
+
+static void render_world_column(uint16_t world_x)
+{
+    uint8_t y;
+    uint8_t map_x = (uint8_t)(world_x & 31u);
+
+    for (y = 0u; y < WORLD_HEIGHT_TILES; ++y) {
+        bg_buffer[y] = world_get_tile_or_empty(world_x, y);
+    }
+
+    set_bkg_tiles(map_x, 0u, 1u, WORLD_HEIGHT_TILES, bg_buffer);
 }
 
 void render_hud(const Inventory *inventory)
@@ -161,16 +223,17 @@ static void draw_recipe_row(const Inventory *inventory, uint8_t recipe_index, bo
     bool can_craft = inventory_can_craft(inventory, recipe_index, near_workbench);
 
     put_win_tile(0u, y, recipe_index == inventory->selected_recipe ? TILE_UI_CURSOR : TILE_UI_PANEL);
-    put_win_tile(2u, y, inventory_item_tile(recipe->output_item));
-    put_count(3u, y, recipe->output_count);
-    put_win_tile(6u, y, TILE_UI_ARROW);
-    put_win_tile(8u, y, inventory_item_tile(recipe->input_a));
-    put_count(9u, y, recipe->input_a_count);
+    put_win_tile(2u, y, inventory_item_tile(recipe->input_a));
+    put_count(3u, y, recipe->input_a_count);
 
     if (recipe->input_b != ITEM_NONE) {
-        put_win_tile(12u, y, inventory_item_tile(recipe->input_b));
-        put_count(13u, y, recipe->input_b_count);
+        put_win_tile(6u, y, inventory_item_tile(recipe->input_b));
+        put_count(7u, y, recipe->input_b_count);
     }
+
+    put_win_tile(10u, y, TILE_UI_ARROW);
+    put_win_tile(12u, y, inventory_item_tile(recipe->output_item));
+    put_count(13u, y, recipe->output_count);
 
     if (!can_craft) {
         put_win_tile(18u, y, TILE_UI_LOCK);
@@ -201,6 +264,6 @@ void render_frame(const Camera *camera, const Player *player)
     int16_t sprite_x = (int16_t)(player->x - (int16_t)camera->x + 8);
     int16_t sprite_y = (int16_t)(player->y - camera->y + 16);
 
-    move_bkg((uint8_t)(camera->x & 7u), camera->y);
+    move_bkg((uint8_t)camera->x, camera->y);
     move_sprite(0u, (uint8_t)sprite_x, (uint8_t)sprite_y);
 }

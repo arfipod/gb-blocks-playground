@@ -1,6 +1,6 @@
-# Terraria GB Lite
+# Eyenaut Adventures
 
-A deliberately small Game Boy / DMG homebrew prototype in C using GBDK-2020. The goal is to explore a Terraria-like destructible tile world while staying honest about original Game Boy limits.
+A deliberately small Game Boy / DMG homebrew prototype in C using GBDK-2020. The goal is to explore a destructible tile adventure while staying honest about original Game Boy limits.
 
 ## Target
 
@@ -15,16 +15,18 @@ Open a new WSL shell after setup so `~/.bashrc` exports `GBDK_HOME` and updates 
 
 ```sh
 cd ~/git/gb-blocks-playground
-make docto
+make doctor
 make tools-check
 make clean
 make
 ```
 
+Use `make doctor-wslg` when you specifically want to verify WSLg display support.
+
 The ROM is written to:
 
 ```text
-build/terraria-gb-lite.gb
+build/eyenaut-adventures.gb
 ```
 
 ## Run
@@ -59,7 +61,7 @@ make run-windows
 That target uses the Windows default app associated with `.gb` files. You can also build in WSL and open this ROM manually from a Windows-native emulator:
 
 ```text
-\\wsl$\Ubuntu\home\arfipod\git\gb-blocks-playground\build\terraria-gb-lite.gb
+\\wsl$\Ubuntu\home\arfipod\git\gb-blocks-playground\build\eyenaut-adventures.gb
 ```
 
 See `docs/SETUP.md` for WSLg troubleshooting notes.

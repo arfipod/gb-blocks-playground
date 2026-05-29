@@ -1,4 +1,4 @@
-PROJECT := terraria-gb-lite
+PROJECT := eyenaut-adventures
 ROM := build/$(PROJECT).gb
 SOURCES := $(wildcard src/*.c)
 INCLUDES := -Iinclude
@@ -34,11 +34,11 @@ endif
 
 PYBOY ?= $(HOME)/gbdev-sandbox/pyboy-venv/bin/pyboy
 
-LCCFLAGS := $(INCLUDES) -Wm-yn"TERRARIA LITE"
+LCCFLAGS := $(INCLUDES) -Wm-yn"EYENAUT ADV"
 EMULATOR_FLAGS ?= -scale 4
 PYBOY_ENV ?= SDL_AUDIODRIVER=dummy LIBGL_ALWAYS_SOFTWARE=1 MESA_LOADER_DRIVER_OVERRIDE=llvmpipe
 
-.PHONY: all clean run run-pyboy run-pyboy-x11 run-wslg run-windows debug wslg-check doctor tools-check
+.PHONY: all clean run run-pyboy run-pyboy-x11 run-wslg run-windows debug wslg-check doctor doctor-wslg tools-check
 
 all: $(ROM)
 
@@ -119,7 +119,9 @@ wslg-check:
 		exit 1; \
 	fi
 
-doctor: tools-check wslg-check
+doctor: tools-check
+
+doctor-wslg: tools-check wslg-check
 
 tools-check:
 	@echo "GBDK lcc:      $$(command -v $(LCC) || true)"

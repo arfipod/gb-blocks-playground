@@ -2,11 +2,11 @@
 
 ## Tile World
 
-The prototype uses a fixed 128 by 18 active world stored in WRAM. Each tile is one byte: empty, dirt, grass, stone, wood, leaves, planks, workbench, or torch. The renderer draws a 32 by 18 background slice around the camera so the logical world can be wider than the Game Boy background map.
+The prototype uses a 128 by 18 logical world. Each tile is one byte: empty, dirt, grass, stone, wood, leaves, planks, workbench, or torch. The full logical world is not materialized in WRAM; `world.c` keeps a 6-chunk active window and reloads distant columns from the procedural generator plus a small changed-tile log.
 
 ## Chunks
 
-The active world is divided into 16 chunks of 8 columns. `chunk.c` procedurally generates surface height, caves, trees, and basic underground layers per chunk. The next step is to keep only nearby chunks in WRAM and reload distant chunks from generator/save data.
+The logical world is divided into 16 chunks of 8 columns. `chunk.c` procedurally generates surface height, caves, trees, and basic underground layers per chunk. `chunk_tick()` now moves the active WRAM window as the camera crosses chunk boundaries; unloaded chunks are reconstructed from the generator and patched with remembered mining/placement changes. The current changed-tile log is a prototype substitute for real save-backed chunk storage.
 
 ## Collision
 
@@ -14,11 +14,11 @@ Collision is tile-based. The player sprite is 8 by 16 pixels, but movement uses 
 
 ## Render Loop
 
-The loop updates input, player physics, camera, chunk bookkeeping, background tiles, and sprite position. Redrawing the whole tiny background is acceptable for this first prototype, but a real game should only update changed tiles and newly visible columns or rows.
+The frame is split into logic and render commit phases. Game logic updates input, player physics, camera, chunk bookkeeping, and dirty flags before waiting for VBlank. After `wait_vbl_done()`, the render commit applies only the VRAM work that is needed: newly visible background columns, queued dirty world tiles, changed HUD/menu tiles, and sprite/background scroll positions.
 
 ## Camera
 
-The camera follows the player horizontally and clamps to the active world width. Rendering uses the integer tile part of the camera to choose the world slice, and the low three pixel bits to scroll the background smoothly.
+The camera follows the player horizontally and clamps to the active world width. Rendering treats the 32-column background map as a ring buffer and uses hardware scroll for smooth pixel movement.
 
 ## Hardware Constraints
 

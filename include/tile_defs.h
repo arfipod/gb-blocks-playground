@@ -22,6 +22,7 @@
 
 #define TILE_COUNT 23u
 #define TILE_SIZE 8u
+#define PLAYER_TILE_BASE 24u
 #define PLAYER_TILE_COUNT 2u
 
 extern const uint8_t terrain_tiles[TILE_COUNT * 16u];

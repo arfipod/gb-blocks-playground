@@ -4,7 +4,6 @@
 #include <stdio.h>
 #include "splash.h"
 
-#define SPLASH_DURATION_FRAMES 180u
 #define SPLASH_ROBOT_TILE_BASE 128u
 #define SPLASH_ROBOT_WIDTH 5u
 #define SPLASH_ROBOT_HEIGHT 6u
@@ -56,11 +55,13 @@ static const uint8_t splash_robot_map[SPLASH_ROBOT_WIDTH * SPLASH_ROBOT_HEIGHT] 
     SPLASH_ROBOT_TILE_BASE + 25u, SPLASH_ROBOT_TILE_BASE + 26u, SPLASH_ROBOT_TILE_BASE + 27u, SPLASH_ROBOT_TILE_BASE + 28u, SPLASH_ROBOT_TILE_BASE + 29u
 };
 
-static void splash_wait(void)
+static void splash_wait_for_start(void)
 {
-    uint8_t frame;
+    while (!(joypad() & J_START)) {
+        wait_vbl_done();
+    }
 
-    for (frame = 0u; frame < SPLASH_DURATION_FRAMES; ++frame) {
+    while (joypad() & J_START) {
         wait_vbl_done();
     }
 }
@@ -113,5 +114,5 @@ void splash_show(void)
     SHOW_BKG;
     DISPLAY_ON;
 
-    splash_wait();
+    splash_wait_for_start();
 }

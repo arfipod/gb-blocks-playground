@@ -33,6 +33,7 @@ typedef struct Inventory {
 } Inventory;
 
 void inventory_init(Inventory *inventory);
+bool inventory_can_add_item(const Inventory *inventory, uint8_t item, uint8_t count);
 void inventory_add_item(Inventory *inventory, uint8_t item, uint8_t count);
 void inventory_add_block(Inventory *inventory, uint8_t tile);
 bool inventory_consume_item(Inventory *inventory, uint8_t item, uint8_t count);

@@ -8,7 +8,8 @@ void main(void)
     game_init();
 
     while (1) {
-        game_update();
-        vsync();
+        game_update_logic();
+        wait_vbl_done();
+        game_render_commit();
     }
 }

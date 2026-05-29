@@ -86,7 +86,13 @@ The quick health check is:
 
 ```sh
 cd ~/git/gb-blocks-playground
-make docto
+make doctor
+```
+
+For a WSLg-specific display check, run:
+
+```sh
+make doctor-wslg
 ```
 
 WSLg can sometimes create Linux GUI windows that appear in Windows Task Manager but do not become visible. This has been observed with Emulicious/Java and can also happen with SDL depending on the Windows graphics driver. If that happens:
@@ -128,8 +134,8 @@ WSLg can sometimes create Linux GUI windows that appear in Windows Task Manager 
 If GUI launch still fails, use one of these workflows:
 
 - Run `make run-windows` from WSL to open the ROM through the Windows `.gb` file association.
-- Run `emulicious build/terraria-gb-lite.gb` from WSL.
-- Run Emulicious on Windows and open `\\wsl$\Ubuntu\home\arfipod\git\gb-blocks-playground\build\terraria-gb-lite.gb`.
+- Run `emulicious build/eyenaut-adventures.gb` from WSL.
+- Run Emulicious on Windows and open `\\wsl$\Ubuntu\home\arfipod\git\gb-blocks-playground\build\eyenaut-adventures.gb`.
 - Use BGB on Windows for strong Game Boy debugging.
 - Keep WSL as a headless build-only environment.
 
@@ -150,7 +156,7 @@ appendWindowsPath=true
 The most reliable Windows workflow is: compile in WSL with `make`, then open the generated ROM from Windows using a Windows-native emulator. The ROM path from Windows is:
 
 ```text
-\\wsl$\Ubuntu\home\arfipod\git\gb-blocks-playground\build\terraria-gb-lite.gb
+\\wsl$\Ubuntu\home\arfipod\git\gb-blocks-playground\build\eyenaut-adventures.gb
 ```
 
 ## Asset Tools

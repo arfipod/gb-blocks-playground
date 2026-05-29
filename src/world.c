@@ -1,39 +1,209 @@
 #include "world.h"
 #include "tile_defs.h"
 
-static uint8_t tiles[WORLD_WIDTH_TILES * WORLD_HEIGHT_TILES];
+#define WORLD_DIRTY_TILE_COUNT 32u
+#define WORLD_CHANGE_COUNT 128u
 
-void world_init(void)
+typedef struct DirtyTile {
+    uint16_t tx;
+    uint8_t ty;
+} DirtyTile;
+
+typedef struct ChangedTile {
+    uint16_t tx;
+    uint8_t ty;
+    uint8_t tile;
+} ChangedTile;
+
+static uint8_t tiles[WORLD_ACTIVE_WIDTH_TILES * WORLD_HEIGHT_TILES];
+static DirtyTile dirty_tiles[WORLD_DIRTY_TILE_COUNT];
+static ChangedTile changed_tiles[WORLD_CHANGE_COUNT];
+static uint8_t dirty_count;
+static uint8_t changed_count;
+static uint8_t active_start_chunk;
+
+static uint16_t active_start_tile(void)
 {
-    uint8_t chunk;
-    uint8_t local_x;
-    uint8_t y;
+    return (uint16_t)(active_start_chunk * CHUNK_WIDTH_TILES);
+}
 
-    for (chunk = 0u; chunk < WORLD_CHUNK_COUNT; ++chunk) {
-        for (local_x = 0u; local_x < CHUNK_WIDTH_TILES; ++local_x) {
-            for (y = 0u; y < WORLD_HEIGHT_TILES; ++y) {
-                world_set_tile((uint16_t)((chunk * CHUNK_WIDTH_TILES) + local_x),
-                               y,
-                               chunk_generate_tile(chunk, local_x, y));
-            }
+static bool world_tile_is_active(uint16_t tx)
+{
+    uint16_t start_tile = active_start_tile();
+
+    return tx >= start_tile && tx < (uint16_t)(start_tile + WORLD_ACTIVE_WIDTH_TILES);
+}
+
+static uint16_t active_tile_index(uint16_t tx, uint8_t ty)
+{
+    return (uint16_t)((ty * WORLD_ACTIVE_WIDTH_TILES) + (tx - active_start_tile()));
+}
+
+static uint8_t world_find_change(uint16_t tx, uint8_t ty)
+{
+    uint8_t i;
+
+    for (i = 0u; i < changed_count; ++i) {
+        if (changed_tiles[i].tx == tx && changed_tiles[i].ty == ty) {
+            return i;
+        }
+    }
+
+    return WORLD_CHANGE_COUNT;
+}
+
+static uint8_t world_generated_tile(uint16_t tx, uint8_t ty)
+{
+    uint8_t chunk = (uint8_t)(tx / CHUNK_WIDTH_TILES);
+    uint8_t local_x = (uint8_t)(tx % CHUNK_WIDTH_TILES);
+
+    return chunk_generate_tile(chunk, local_x, ty);
+}
+
+static uint8_t world_generated_tile_with_changes(uint16_t tx, uint8_t ty)
+{
+    uint8_t change_index = world_find_change(tx, ty);
+
+    if (change_index < WORLD_CHANGE_COUNT) {
+        return changed_tiles[change_index].tile;
+    }
+
+    return world_generated_tile(tx, ty);
+}
+
+static void world_save_change(uint16_t tx, uint8_t ty, uint8_t tile)
+{
+    uint8_t change_index = world_find_change(tx, ty);
+
+    if (tile == world_generated_tile(tx, ty)) {
+        if (change_index < WORLD_CHANGE_COUNT) {
+            --changed_count;
+            changed_tiles[change_index] = changed_tiles[changed_count];
+        }
+
+        return;
+    }
+
+    if (change_index < WORLD_CHANGE_COUNT) {
+        changed_tiles[change_index].tile = tile;
+        return;
+    }
+
+    if (changed_count < WORLD_CHANGE_COUNT) {
+        changed_tiles[changed_count].tx = tx;
+        changed_tiles[changed_count].ty = ty;
+        changed_tiles[changed_count].tile = tile;
+        ++changed_count;
+    }
+}
+
+static uint8_t clamp_active_start_chunk(uint8_t start_chunk)
+{
+#if WORLD_ACTIVE_CHUNK_COUNT >= WORLD_CHUNK_COUNT
+    (void)start_chunk;
+    return 0u;
+#else
+    if (start_chunk > (uint8_t)(WORLD_CHUNK_COUNT - WORLD_ACTIVE_CHUNK_COUNT)) {
+        return (uint8_t)(WORLD_CHUNK_COUNT - WORLD_ACTIVE_CHUNK_COUNT);
+    }
+
+    return start_chunk;
+#endif
+}
+
+static void world_load_active_window(void)
+{
+    uint8_t x;
+    uint8_t y;
+    uint16_t start_tile = active_start_tile();
+
+    for (y = 0u; y < WORLD_HEIGHT_TILES; ++y) {
+        for (x = 0u; x < WORLD_ACTIVE_WIDTH_TILES; ++x) {
+            uint16_t world_x = (uint16_t)(start_tile + x);
+
+            tiles[(y * WORLD_ACTIVE_WIDTH_TILES) + x] =
+                world_generated_tile_with_changes(world_x, y);
         }
     }
 }
 
-uint8_t world_get_tile(uint16_t tx, uint8_t ty)
+static void world_mark_dirty(uint16_t tx, uint8_t ty)
+{
+    if (dirty_count < WORLD_DIRTY_TILE_COUNT) {
+        dirty_tiles[dirty_count].tx = tx;
+        dirty_tiles[dirty_count].ty = ty;
+        ++dirty_count;
+    }
+}
+
+void world_init(void)
+{
+    dirty_count = 0u;
+    changed_count = 0u;
+    active_start_chunk = 0u;
+    world_load_active_window();
+}
+
+uint8_t world_get_tile_or_empty(uint16_t tx, uint8_t ty)
+{
+    if (tx >= WORLD_WIDTH_TILES || ty >= WORLD_HEIGHT_TILES) {
+        return TILE_EMPTY;
+    }
+
+    if (world_tile_is_active(tx)) {
+        return tiles[active_tile_index(tx, ty)];
+    }
+
+    return world_generated_tile_with_changes(tx, ty);
+}
+
+uint8_t world_get_tile_for_collision(uint16_t tx, uint8_t ty)
 {
     if (tx >= WORLD_WIDTH_TILES || ty >= WORLD_HEIGHT_TILES) {
         return TILE_STONE;
     }
 
-    return tiles[(ty * WORLD_WIDTH_TILES) + tx];
+    if (world_tile_is_active(tx)) {
+        return tiles[active_tile_index(tx, ty)];
+    }
+
+    return world_generated_tile_with_changes(tx, ty);
 }
 
 void world_set_tile(uint16_t tx, uint8_t ty, uint8_t tile)
 {
     if (tx < WORLD_WIDTH_TILES && ty < WORLD_HEIGHT_TILES) {
-        tiles[(ty * WORLD_WIDTH_TILES) + tx] = tile;
+        if (world_tile_is_active(tx)) {
+            tiles[active_tile_index(tx, ty)] = tile;
+        }
+
+        world_save_change(tx, ty, tile);
+        world_mark_dirty(tx, ty);
     }
+}
+
+uint8_t world_stream_to_chunk(uint8_t start_chunk)
+{
+    uint8_t clamped_start_chunk = clamp_active_start_chunk(start_chunk);
+
+    if (clamped_start_chunk != active_start_chunk) {
+        active_start_chunk = clamped_start_chunk;
+        world_load_active_window();
+    }
+
+    return active_start_chunk;
+}
+
+bool world_take_dirty_tile(uint16_t *tx, uint8_t *ty)
+{
+    if (dirty_count == 0u) {
+        return false;
+    }
+
+    --dirty_count;
+    *tx = dirty_tiles[dirty_count].tx;
+    *ty = dirty_tiles[dirty_count].ty;
+    return true;
 }
 
 bool world_is_solid_tile(uint8_t tile)
@@ -47,7 +217,7 @@ bool world_is_solid_at_pixel(int16_t x, int16_t y)
         return true;
     }
 
-    return world_is_solid_tile(world_get_tile((uint16_t)(x >> 3), (uint8_t)(y >> 3)));
+    return world_is_solid_tile(world_get_tile_for_collision((uint16_t)(x >> 3), (uint8_t)(y >> 3)));
 }
 
 uint8_t world_mine_at_pixel(int16_t x, int16_t y)
@@ -67,7 +237,7 @@ uint8_t world_mine_at_pixel(int16_t x, int16_t y)
         return TILE_EMPTY;
     }
 
-    tile = world_get_tile(tx, ty);
+    tile = world_get_tile_or_empty(tx, ty);
 
     if (tile != TILE_EMPTY) {
         world_set_tile(tx, ty, TILE_EMPTY);
@@ -95,13 +265,63 @@ bool world_place_at_pixel(int16_t x, int16_t y, uint8_t tile)
     return world_place_tile(tx, ty, tile);
 }
 
+static bool world_has_solid_neighbor(uint16_t tx, uint8_t ty)
+{
+    if (tx > 0u && world_is_solid_tile(world_get_tile_or_empty((uint16_t)(tx - 1u), ty))) {
+        return true;
+    }
+
+    if ((uint16_t)(tx + 1u) < WORLD_WIDTH_TILES &&
+        world_is_solid_tile(world_get_tile_or_empty((uint16_t)(tx + 1u), ty))) {
+        return true;
+    }
+
+    if (ty > 0u && world_is_solid_tile(world_get_tile_or_empty(tx, (uint8_t)(ty - 1u)))) {
+        return true;
+    }
+
+    if ((uint8_t)(ty + 1u) < WORLD_HEIGHT_TILES &&
+        world_is_solid_tile(world_get_tile_or_empty(tx, (uint8_t)(ty + 1u)))) {
+        return true;
+    }
+
+    return false;
+}
+
+static bool world_torch_has_support(uint16_t tx, uint8_t ty)
+{
+    if (tx > 0u && world_is_solid_tile(world_get_tile_or_empty((uint16_t)(tx - 1u), ty))) {
+        return true;
+    }
+
+    if ((uint16_t)(tx + 1u) < WORLD_WIDTH_TILES &&
+        world_is_solid_tile(world_get_tile_or_empty((uint16_t)(tx + 1u), ty))) {
+        return true;
+    }
+
+    if ((uint8_t)(ty + 1u) < WORLD_HEIGHT_TILES &&
+        world_is_solid_tile(world_get_tile_or_empty(tx, (uint8_t)(ty + 1u)))) {
+        return true;
+    }
+
+    return false;
+}
+
 bool world_place_tile(uint16_t tx, uint8_t ty, uint8_t tile)
 {
     if (tx >= WORLD_WIDTH_TILES || ty >= WORLD_HEIGHT_TILES || tile == TILE_EMPTY) {
         return false;
     }
 
-    if (world_get_tile(tx, ty) != TILE_EMPTY) {
+    if (world_get_tile_or_empty(tx, ty) != TILE_EMPTY) {
+        return false;
+    }
+
+    if (tile == TILE_TORCH) {
+        if (!world_torch_has_support(tx, ty)) {
+            return false;
+        }
+    } else if (!world_has_solid_neighbor(tx, ty)) {
         return false;
     }
 
@@ -132,16 +352,11 @@ bool world_has_tile_near_pixel(int16_t x, int16_t y, uint8_t tile, uint8_t radiu
                 continue;
             }
 
-            if (world_get_tile((uint16_t)tx, (uint8_t)ty) == tile) {
+            if (world_get_tile_or_empty((uint16_t)tx, (uint8_t)ty) == tile) {
                 return true;
             }
         }
     }
 
     return false;
-}
-
-const uint8_t *world_tiles(void)
-{
-    return tiles;
 }

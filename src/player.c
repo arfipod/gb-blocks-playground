@@ -13,6 +13,10 @@
 #define PLAYER_HITBOX_Y_OFFSET 8
 #define PLAYER_HITBOX_WIDTH 6
 #define PLAYER_HITBOX_HEIGHT 8
+#define PLAYER_PLACEMENT_X_OFFSET 0
+#define PLAYER_PLACEMENT_Y_OFFSET 0
+#define PLAYER_PLACEMENT_WIDTH PLAYER_WIDTH
+#define PLAYER_PLACEMENT_HEIGHT PLAYER_HEIGHT
 
 static uint8_t player_aabb_solid_at(int16_t x, int16_t y)
 {
@@ -102,13 +106,13 @@ static uint8_t overlaps_player(const Player *player, uint16_t tx, uint8_t ty)
 {
     int16_t tile_x = (int16_t)(tx << 3);
     int16_t tile_y = (int16_t)(ty << 3);
-    int16_t player_x = (int16_t)(player->x + PLAYER_HITBOX_X_OFFSET);
-    int16_t player_y = (int16_t)(player->y + PLAYER_HITBOX_Y_OFFSET);
+    int16_t player_x = (int16_t)(player->x + PLAYER_PLACEMENT_X_OFFSET);
+    int16_t player_y = (int16_t)(player->y + PLAYER_PLACEMENT_Y_OFFSET);
 
     return player_x < (int16_t)(tile_x + TILE_SIZE) &&
-           (int16_t)(player_x + PLAYER_HITBOX_WIDTH) > tile_x &&
+           (int16_t)(player_x + PLAYER_PLACEMENT_WIDTH) > tile_x &&
            player_y < (int16_t)(tile_y + TILE_SIZE) &&
-           (int16_t)(player_y + PLAYER_HITBOX_HEIGHT) > tile_y;
+           (int16_t)(player_y + PLAYER_PLACEMENT_HEIGHT) > tile_y;
 }
 
 static void aim_tile(const Player *player, const InputState *input, uint16_t *tx, uint8_t *ty)
@@ -156,15 +160,21 @@ static void use_tool(Player *player, const InputState *input, Inventory *invento
     uint16_t target_tx;
     uint8_t target_ty;
     uint8_t tile;
+    uint8_t item;
 
     aim_tile(player, input, &target_tx, &target_ty);
 
     if (input->pressed & J_A) {
-        tile = world_mine_at_pixel((int16_t)(target_tx << 3), (int16_t)(target_ty << 3));
-        inventory_add_block(inventory, tile);
+        tile = world_get_tile_or_empty(target_tx, target_ty);
+        item = inventory_item_for_tile(tile);
+
+        if (item == ITEM_NONE || inventory_can_add_item(inventory, item, 1u)) {
+            tile = world_mine_at_pixel((int16_t)(target_tx << 3), (int16_t)(target_ty << 3));
+            inventory_add_block(inventory, tile);
+        }
     }
 
-    if (input->pressed & J_B) {
+    else if (input->pressed & J_B) {
         tile = inventory_selected_tile(inventory);
 
         if (inventory->counts[inventory->selected_slot] > 0u) {
@@ -188,6 +198,8 @@ void player_init(Player *player)
 
 void player_update(Player *player, const InputState *input, Inventory *inventory)
 {
+    uint8_t using_tool = (uint8_t)(input->current & (J_A | J_B));
+
     player->vx = 0;
 
     if (input->pressed & J_START) {
@@ -202,7 +214,7 @@ void player_update(Player *player, const InputState *input, Inventory *inventory
         player->facing = 1u;
     }
 
-    if ((input->pressed & J_UP) && player->grounded) {
+    if ((input->pressed & J_UP) && player->grounded && !using_tool) {
         player->vy = JUMP_SPEED;
         player->grounded = 0u;
     }

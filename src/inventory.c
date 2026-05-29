@@ -23,6 +23,15 @@ void inventory_init(Inventory *inventory)
     inventory_add_item(inventory, ITEM_STONE, 2u);
 }
 
+bool inventory_can_add_item(const Inventory *inventory, uint8_t item, uint8_t count)
+{
+    if (item >= INVENTORY_SLOT_COUNT || count == 0u || count > INVENTORY_MAX_COUNT) {
+        return false;
+    }
+
+    return inventory->counts[item] <= (uint8_t)(INVENTORY_MAX_COUNT - count);
+}
+
 void inventory_add_item(Inventory *inventory, uint8_t item, uint8_t count)
 {
     uint16_t next_count;
@@ -153,6 +162,10 @@ bool inventory_can_craft(const Inventory *inventory, uint8_t recipe_index, bool 
     const Recipe *recipe = inventory_recipe(recipe_index);
 
     if (recipe->requires_workbench && !near_workbench) {
+        return false;
+    }
+
+    if (!inventory_can_add_item(inventory, recipe->output_item, recipe->output_count)) {
         return false;
     }
 
