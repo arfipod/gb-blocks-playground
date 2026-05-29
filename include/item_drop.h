@@ -16,6 +16,7 @@ typedef struct ItemDrop {
     int8_t vy;
     uint8_t item;
     uint8_t count;
+    uint8_t pickup_delay;
     uint16_t lifetime;
 } ItemDrop;
 

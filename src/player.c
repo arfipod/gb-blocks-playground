@@ -1,5 +1,6 @@
 #include <gb/gb.h>
 #include "audio.h"
+#include "item_drop.h"
 #include "mining.h"
 #include "player.h"
 #include "tile_defs.h"
@@ -228,7 +229,10 @@ static void aim_tile(const Player *player, const InputState *input, uint16_t *tx
     }
 }
 
-static void update_aim_state(Player *player, const InputState *input, const Inventory *inventory)
+static void update_aim_state(Player *player,
+                             const InputState *input,
+                             const Inventory *inventory,
+                             const ItemDrop *drops)
 {
     uint8_t target_tile;
     uint8_t target_item;
@@ -247,7 +251,7 @@ static void update_aim_state(Player *player, const InputState *input, const Inve
 
     if (target_tile != TILE_EMPTY &&
         inventory_can_mine_tile(inventory, target_tile) &&
-        (target_item == ITEM_NONE || inventory_can_add_item(inventory, target_item, 1u))) {
+        (target_item == ITEM_NONE || item_drops_has_free_slot(drops))) {
         player->aim_flags |= PLAYER_AIM_ACTIONABLE;
     }
 
@@ -389,7 +393,7 @@ void player_update(Player *player, const InputState *input, Inventory *inventory
         player->vx = player->vx > 0 ? (int16_t)(player->vx - 1) : (int16_t)(player->vx + 1);
     }
 
-    update_aim_state(player, input, inventory);
+    update_aim_state(player, input, inventory, drops);
     mining_update(&mining_state, player, input, inventory, drops);
     use_placement(player, input, inventory);
 }

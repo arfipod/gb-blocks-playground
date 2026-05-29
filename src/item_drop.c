@@ -6,6 +6,7 @@
 #define ITEM_DROP_MAX_FALL_SPEED 3
 #define ITEM_DROP_LIFETIME 3600u
 #define ITEM_DROP_PICKUP_SIZE 10u
+#define ITEM_DROP_PICKUP_DELAY 18u
 
 void item_drops_init(ItemDrop *drops)
 {
@@ -46,6 +47,7 @@ bool item_drops_spawn(ItemDrop *drops, uint16_t tx, uint8_t ty, uint8_t item, ui
             drops[i].vy = 0;
             drops[i].item = item;
             drops[i].count = count;
+            drops[i].pickup_delay = ITEM_DROP_PICKUP_DELAY;
             drops[i].lifetime = ITEM_DROP_LIFETIME;
             return true;
         }
@@ -98,6 +100,11 @@ void item_drops_update(ItemDrop *drops, const Player *player, Inventory *invento
 
         --drop->lifetime;
         item_drop_move_vertical(drop);
+
+        if (drop->pickup_delay != 0u) {
+            --drop->pickup_delay;
+            continue;
+        }
 
         if (player_overlaps_aabb(player,
                                  (int16_t)drop->x,
