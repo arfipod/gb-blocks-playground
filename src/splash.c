@@ -82,7 +82,8 @@ static void load_splash_robot_tiles(void)
 {
     set_bkg_data(SPLASH_PLAYER_TILE_BASE,
                  EYENAUT_PLAYER_WALK_TILE_COUNT,
-                 eyenaut_player_walk_tiles);
+                 &eyenaut_player_walk_tiles[(uint16_t)EYENAUT_PLAYER_WALK_FRONT_TILE_OFFSET *
+                                            EYENAUT_PLAYER_WALK_BYTES_PER_TILE]);
 }
 
 static void draw_splash_ground(void)

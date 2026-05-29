@@ -6,7 +6,7 @@ A deliberately small Game Boy / DMG homebrew prototype in C using GBDK-2020. The
 
 | Title screen | Exploration |
 | --- | --- |
-| <img src="docs/screenshots/title-screen-4x.png" width="320" alt="Eyenaut Adventures title screen with right-facing player sprite"> | <img src="docs/screenshots/world-hud-4x.png" width="320" alt="Exploration scene with right-facing player, HUD, torch light, enemy, and item drop"> |
+| <img src="docs/screenshots/title-screen-4x.png" width="320" alt="Eyenaut Adventures title screen with front-facing player sprite"> | <img src="docs/screenshots/world-hud-4x.png" width="320" alt="Exploration scene with right-facing player, HUD, torch light, enemy, and item drop"> |
 
 | Crafting | Celestial Ruins |
 | --- | --- |

@@ -497,15 +497,19 @@ void render_menu(const Inventory *inventory, bool near_workbench, uint8_t craft_
 void render_frame(const Camera *camera, const Player *player, const Enemy *enemies, const ItemDrop *drops)
 {
     uint8_t i;
-    uint8_t player_tile = (player->facing == 0u) ?
-                          (uint8_t)(PLAYER_TILE_BASE + EYENAUT_PLAYER_WALK_LEFT_TILE_OFFSET) :
-                          (uint8_t)(PLAYER_TILE_BASE + EYENAUT_PLAYER_WALK_RIGHT_TILE_OFFSET);
+    uint8_t player_tile = PLAYER_TILE_BASE + EYENAUT_PLAYER_WALK_FRONT_TILE_OFFSET;
     int16_t sprite_x = (int16_t)(player->x - (int16_t)camera->x + 8);
     int16_t sprite_y = (int16_t)(player->y - camera->y + 16);
     int16_t cursor_x = (int16_t)((player->aim_tx << 3) - camera->x + 8);
     int16_t cursor_y = (int16_t)((player->aim_ty << 3) - camera->y + 16);
 
     move_bkg((uint8_t)camera->x, camera->y);
+    if (player->vx != 0) {
+        player_tile = (player->facing == 0u) ?
+                      (uint8_t)(PLAYER_TILE_BASE + EYENAUT_PLAYER_WALK_LEFT_TILE_OFFSET) :
+                      (uint8_t)(PLAYER_TILE_BASE + EYENAUT_PLAYER_WALK_RIGHT_TILE_OFFSET);
+    }
+
     if (player_tile != last_player_tile) {
         set_sprite_tile(PLAYER_SPRITE, player_tile);
         last_player_tile = player_tile;
