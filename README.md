@@ -88,6 +88,10 @@ That target uses the Windows default app associated with `.gb` files. You can al
 
 See `docs/SETUP.md` for WSLg troubleshooting notes.
 
+## Tools
+
+- [Audio tool](docs/AUDIO_TOOL.md): open `tools/gbdk_audio_piano_recorder.html` in a browser to record pulse-based Game Boy melody sketches, edit the step grid, and export `GBSongNote` C headers for the current CH2 music engine.
+
 ## Controls
 
 - Left / Right: move.

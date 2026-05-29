@@ -31,7 +31,7 @@ EMULATOR ?= $(HOME)/.local/bin/emulicious
 EMULATOR_FLAGS ?= -scale 4
 else ifneq ($(shell command -v pyboy 2>/dev/null),)
 EMULATOR ?= pyboy
-EMULATOR_FLAGS ?= --window SDL2 --scale 4 --dmg --no-sound-emulation
+EMULATOR_FLAGS ?= --window SDL2 --scale 4 --dmg
 else
 EMULATOR ?= emulicious
 EMULATOR_FLAGS ?= -scale 4
@@ -50,7 +50,7 @@ DOCKER_RUN ?= docker run --rm -it -v "$(CURDIR):$(DOCKER_WORKDIR)" -w "$(DOCKER_
 LCCFLAGS := $(INCLUDES) -Wm-yn"EYENAUT ADV"
 PYBOY_ENV ?= SDL_AUDIODRIVER=dummy LIBGL_ALWAYS_SOFTWARE=1 MESA_LOADER_DRIVER_OVERRIDE=llvmpipe
 
-.PHONY: all clean run run-pyboy run-pyboy-x11 run-wslg run-windows debug wslg-check doctor doctor-wslg tools-check docker-build docker-shell docker-make docker-doctor
+.PHONY: all clean run run-pyboy run-pyboy-audio run-pyboy-x11 run-wslg run-windows debug wslg-check doctor doctor-wslg tools-check docker-build docker-shell docker-make docker-doctor
 
 all: $(ROM)
 
@@ -85,7 +85,15 @@ run-pyboy: $(ROM)
 		echo "Create it with: python3 -m venv ~/gbdev-sandbox/pyboy-venv && ~/gbdev-sandbox/pyboy-venv/bin/python -m pip install pyboy"; \
 		exit 1; \
 	fi
-	$(PYBOY_ENV) $(PYBOY) --window SDL2 --scale 4 --dmg --no-sound-emulation $(ROM)
+	$(PYBOY_ENV) $(PYBOY) --window SDL2 --scale 4 --dmg $(ROM)
+
+run-pyboy-audio: $(ROM)
+	@if [ ! -x "$(PYBOY)" ] && ! command -v $(PYBOY) >/dev/null 2>&1; then \
+		echo "PyBoy was not found at $(PYBOY)."; \
+		echo "Create it with: python3 -m venv ~/gbdev-sandbox/pyboy-venv && ~/gbdev-sandbox/pyboy-venv/bin/python -m pip install pyboy"; \
+		exit 1; \
+	fi
+	LIBGL_ALWAYS_SOFTWARE=1 MESA_LOADER_DRIVER_OVERRIDE=llvmpipe $(PYBOY) --window SDL2 --scale 4 --dmg $(ROM)
 
 run-pyboy-x11: $(ROM)
 	@if [ ! -x "$(PYBOY)" ] && ! command -v $(PYBOY) >/dev/null 2>&1; then \
@@ -93,7 +101,7 @@ run-pyboy-x11: $(ROM)
 		echo "Create it with: python3 -m venv ~/gbdev-sandbox/pyboy-venv && ~/gbdev-sandbox/pyboy-venv/bin/python -m pip install pyboy"; \
 		exit 1; \
 	fi
-	SDL_VIDEODRIVER=x11 $(PYBOY_ENV) $(PYBOY) --window SDL2 --scale 4 --dmg --no-sound-emulation $(ROM)
+	SDL_VIDEODRIVER=x11 $(PYBOY_ENV) $(PYBOY) --window SDL2 --scale 4 --dmg $(ROM)
 
 run-wslg: wslg-check run-pyboy
 
