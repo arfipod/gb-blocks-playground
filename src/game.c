@@ -87,13 +87,12 @@ void game_update_logic(void)
         menu_open = (uint8_t)!menu_open;
 
         if (menu_open) {
+            workbench_nearby = player_near_workbench();
             menu_dirty = 1u;
         } else {
             hud_dirty = 1u;
         }
     }
-
-    workbench_nearby = player_near_workbench();
 
     if (menu_open) {
         previous_inventory = inventory;

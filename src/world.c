@@ -1,7 +1,9 @@
 #include "world.h"
 #include "tile_defs.h"
 
-#define WORLD_DIRTY_TILE_COUNT 32u
+#define WORLD_DIRTY_TILE_COUNT 128u
+#define WORLD_TORCH_LIGHT_RADIUS 4u
+#define WORLD_TORCH_BRIGHT_RADIUS 2u
 
 typedef struct DirtyTile {
     uint16_t tx;
@@ -9,6 +11,7 @@ typedef struct DirtyTile {
 } DirtyTile;
 
 static uint8_t tiles[WORLD_ACTIVE_WIDTH_TILES * WORLD_HEIGHT_TILES];
+static uint8_t light_levels[WORLD_ACTIVE_WIDTH_TILES * WORLD_HEIGHT_TILES];
 static DirtyTile dirty_tiles[WORLD_DIRTY_TILE_COUNT];
 static ChangedTile changed_tiles[WORLD_CHANGE_COUNT];
 static uint8_t dirty_count;
@@ -32,6 +35,18 @@ static bool world_tile_is_active(uint16_t tx)
 static uint16_t active_tile_index(uint16_t tx, uint8_t ty)
 {
     return (uint16_t)((ty * WORLD_ACTIVE_WIDTH_TILES) + (tx - active_start_tile()));
+}
+
+static uint8_t distance_u16_u8(uint16_t ax, uint8_t ay, uint16_t bx, uint8_t by)
+{
+    uint16_t dx = ax > bx ? (uint16_t)(ax - bx) : (uint16_t)(bx - ax);
+    uint8_t dy = ay > by ? (uint8_t)(ay - by) : (uint8_t)(by - ay);
+
+    if (dx > WORLD_TORCH_LIGHT_RADIUS) {
+        return (uint8_t)(WORLD_TORCH_LIGHT_RADIUS + 1u);
+    }
+
+    return (uint8_t)(dx + dy);
 }
 
 static uint8_t world_find_change(uint16_t tx, uint8_t ty)
@@ -64,6 +79,173 @@ static uint8_t world_generated_tile_with_changes(uint16_t tx, uint8_t ty)
     }
 
     return world_generated_tile(tx, ty);
+}
+
+static uint8_t light_level_from_changed_torches(uint16_t tx, uint8_t ty)
+{
+    uint8_t i;
+    uint8_t best = 2u;
+
+    for (i = 0u; i < changed_count; ++i) {
+        uint8_t distance;
+
+        if (changed_tiles[i].tile != TILE_TORCH) {
+            continue;
+        }
+
+        distance = distance_u16_u8(tx, ty, changed_tiles[i].tx, changed_tiles[i].ty);
+
+        if (distance <= WORLD_TORCH_BRIGHT_RADIUS) {
+            return 0u;
+        }
+
+        if (distance <= WORLD_TORCH_LIGHT_RADIUS) {
+            best = 1u;
+        }
+    }
+
+    return best;
+}
+
+static void apply_torch_to_light_cache(uint16_t torch_tx, uint8_t torch_ty)
+{
+    int8_t dx;
+    int8_t dy;
+    uint16_t start_tile = active_start_tile();
+
+    for (dy = (int8_t)-WORLD_TORCH_LIGHT_RADIUS; dy <= (int8_t)WORLD_TORCH_LIGHT_RADIUS; ++dy) {
+        int16_t check_ty = (int16_t)torch_ty + dy;
+
+        if (check_ty < 0 || check_ty >= WORLD_HEIGHT_TILES) {
+            continue;
+        }
+
+        for (dx = (int8_t)-WORLD_TORCH_LIGHT_RADIUS; dx <= (int8_t)WORLD_TORCH_LIGHT_RADIUS; ++dx) {
+            uint8_t distance = (uint8_t)((dx < 0 ? -dx : dx) + (dy < 0 ? -dy : dy));
+            int16_t check_tx_signed;
+            uint16_t check_tx;
+            uint16_t index;
+
+            if (distance > WORLD_TORCH_LIGHT_RADIUS) {
+                continue;
+            }
+
+            check_tx_signed = (int16_t)torch_tx + dx;
+
+            if (check_tx_signed < 0 || check_tx_signed >= WORLD_WIDTH_TILES) {
+                continue;
+            }
+
+            check_tx = (uint16_t)check_tx_signed;
+
+            if (check_tx < start_tile ||
+                check_tx >= (uint16_t)(start_tile + WORLD_ACTIVE_WIDTH_TILES)) {
+                continue;
+            }
+
+            index = active_tile_index(check_tx, (uint8_t)check_ty);
+
+            if (distance <= WORLD_TORCH_BRIGHT_RADIUS) {
+                light_levels[index] = 0u;
+            } else if (light_levels[index] > 1u) {
+                light_levels[index] = 1u;
+            }
+        }
+    }
+}
+
+static void world_rebuild_light_cache(void)
+{
+    uint16_t i;
+    uint8_t x;
+    uint8_t y;
+    uint16_t start_tile = active_start_tile();
+
+    for (i = 0u; i < (uint16_t)(WORLD_ACTIVE_WIDTH_TILES * WORLD_HEIGHT_TILES); ++i) {
+        light_levels[i] = 2u;
+    }
+
+    for (y = 0u; y < WORLD_HEIGHT_TILES; ++y) {
+        for (x = 0u; x < WORLD_ACTIVE_WIDTH_TILES; ++x) {
+            if (tiles[(y * WORLD_ACTIVE_WIDTH_TILES) + x] == TILE_TORCH) {
+                apply_torch_to_light_cache((uint16_t)(start_tile + x), y);
+            }
+        }
+    }
+}
+
+static void world_mark_dirty(uint16_t tx, uint8_t ty);
+
+static void world_mark_light_area_dirty(uint16_t center_tx, uint8_t center_ty)
+{
+    int8_t dx;
+    int8_t dy;
+
+    for (dy = (int8_t)-WORLD_TORCH_LIGHT_RADIUS; dy <= (int8_t)WORLD_TORCH_LIGHT_RADIUS; ++dy) {
+        int16_t check_ty = (int16_t)center_ty + dy;
+
+        if (check_ty < 0 || check_ty >= WORLD_HEIGHT_TILES) {
+            continue;
+        }
+
+        for (dx = (int8_t)-WORLD_TORCH_LIGHT_RADIUS; dx <= (int8_t)WORLD_TORCH_LIGHT_RADIUS; ++dx) {
+            uint8_t distance = (uint8_t)((dx < 0 ? -dx : dx) + (dy < 0 ? -dy : dy));
+            int16_t check_tx_signed;
+
+            if (distance > WORLD_TORCH_LIGHT_RADIUS) {
+                continue;
+            }
+
+            check_tx_signed = (int16_t)center_tx + dx;
+
+            if (check_tx_signed < 0 || check_tx_signed >= WORLD_WIDTH_TILES) {
+                continue;
+            }
+
+            world_mark_dirty((uint16_t)check_tx_signed, (uint8_t)check_ty);
+        }
+    }
+}
+
+static void world_rebuild_light_area(uint16_t center_tx, uint8_t center_ty)
+{
+    int8_t dx;
+    int8_t dy;
+    uint16_t start_tile = active_start_tile();
+
+    for (dy = (int8_t)-WORLD_TORCH_LIGHT_RADIUS; dy <= (int8_t)WORLD_TORCH_LIGHT_RADIUS; ++dy) {
+        int16_t check_ty = (int16_t)center_ty + dy;
+
+        if (check_ty < 0 || check_ty >= WORLD_HEIGHT_TILES) {
+            continue;
+        }
+
+        for (dx = (int8_t)-WORLD_TORCH_LIGHT_RADIUS; dx <= (int8_t)WORLD_TORCH_LIGHT_RADIUS; ++dx) {
+            uint8_t distance = (uint8_t)((dx < 0 ? -dx : dx) + (dy < 0 ? -dy : dy));
+            int16_t check_tx_signed;
+            uint16_t check_tx;
+
+            if (distance > WORLD_TORCH_LIGHT_RADIUS) {
+                continue;
+            }
+
+            check_tx_signed = (int16_t)center_tx + dx;
+
+            if (check_tx_signed < 0 || check_tx_signed >= WORLD_WIDTH_TILES) {
+                continue;
+            }
+
+            check_tx = (uint16_t)check_tx_signed;
+
+            if (check_tx >= start_tile &&
+                check_tx < (uint16_t)(start_tile + WORLD_ACTIVE_WIDTH_TILES)) {
+                light_levels[active_tile_index(check_tx, (uint8_t)check_ty)] =
+                    light_level_from_changed_torches(check_tx, (uint8_t)check_ty);
+            }
+
+            world_mark_dirty(check_tx, (uint8_t)check_ty);
+        }
+    }
 }
 
 static void world_save_change(uint16_t tx, uint8_t ty, uint8_t tile)
@@ -139,15 +321,26 @@ static void world_load_active_window(void)
 {
     world_load_generated_window();
     world_apply_changes();
+    world_rebuild_light_cache();
     lighting_dirty = 1u;
 }
 
 static void world_mark_dirty(uint16_t tx, uint8_t ty)
 {
+    uint8_t i;
+
+    for (i = 0u; i < dirty_count; ++i) {
+        if (dirty_tiles[i].tx == tx && dirty_tiles[i].ty == ty) {
+            return;
+        }
+    }
+
     if (dirty_count < WORLD_DIRTY_TILE_COUNT) {
         dirty_tiles[dirty_count].tx = tx;
         dirty_tiles[dirty_count].ty = ty;
         ++dirty_count;
+    } else {
+        lighting_dirty = 1u;
     }
 }
 
@@ -184,6 +377,7 @@ void world_clear_lighting_dirty(void)
 void world_clear_changes(void)
 {
     changed_count = 0u;
+    world_load_active_window();
     lighting_dirty = 1u;
 }
 
@@ -211,6 +405,7 @@ bool world_restore_changed_tile(const ChangedTile *change)
     }
 
     world_save_change(change->tx, change->ty, change->tile);
+    world_load_active_window();
     lighting_dirty = 1u;
     return true;
 }
@@ -258,10 +453,27 @@ uint8_t world_get_tile_for_collision(uint16_t tx, uint8_t ty)
     return world_generated_tile_with_changes(tx, ty);
 }
 
+uint8_t world_light_level(uint16_t tx, uint8_t ty)
+{
+    if (tx >= WORLD_WIDTH_TILES || ty >= WORLD_HEIGHT_TILES) {
+        return 2u;
+    }
+
+    if (world_tile_is_active(tx)) {
+        return light_levels[active_tile_index(tx, ty)];
+    }
+
+    return light_level_from_changed_torches(tx, ty);
+}
+
 void world_set_tile(uint16_t tx, uint8_t ty, uint8_t tile)
 {
     if (tx < WORLD_WIDTH_TILES && ty < WORLD_HEIGHT_TILES) {
         uint8_t previous_tile = world_get_tile_or_empty(tx, ty);
+
+        if (previous_tile == tile) {
+            return;
+        }
 
         if (world_tile_is_active(tx)) {
             tiles[active_tile_index(tx, ty)] = tile;
@@ -269,9 +481,17 @@ void world_set_tile(uint16_t tx, uint8_t ty, uint8_t tile)
 
         world_save_change(tx, ty, tile);
 
-        lighting_dirty = 1u;
+        if (previous_tile == TILE_TORCH) {
+            world_rebuild_light_area(tx, ty);
+        } else if (tile == TILE_TORCH) {
+            if (world_tile_is_active(tx)) {
+                apply_torch_to_light_cache(tx, ty);
+            }
 
-        world_mark_dirty(tx, ty);
+            world_mark_light_area_dirty(tx, ty);
+        } else {
+            world_mark_dirty(tx, ty);
+        }
     }
 }
 
@@ -322,6 +542,36 @@ bool world_is_solid_at_pixel(int16_t x, int16_t y)
     }
 
     return world_is_solid_tile(world_get_tile_for_collision((uint16_t)(x >> 3), (uint8_t)(y >> 3)));
+}
+
+bool world_find_surface_spawn(uint16_t tx, int16_t *x, int16_t *y)
+{
+    uint8_t ty;
+
+    if (tx >= WORLD_WIDTH_TILES || x == 0 || y == 0) {
+        return false;
+    }
+
+    ty = chunk_surface_y(tx);
+
+    if (ty == 0u || ty >= WORLD_HEIGHT_TILES) {
+        return false;
+    }
+
+    if (world_tile_is_active(tx)) {
+        uint16_t column = (uint16_t)(tx - active_start_tile());
+        uint16_t above_index = (uint16_t)(((uint8_t)(ty - 1u) * WORLD_ACTIVE_WIDTH_TILES) + column);
+        uint16_t ground_index = (uint16_t)((ty * WORLD_ACTIVE_WIDTH_TILES) + column);
+
+        if (tiles[above_index] != TILE_EMPTY ||
+            !world_is_solid_tile(tiles[ground_index])) {
+            return false;
+        }
+    }
+
+    *x = (int16_t)(tx << 3);
+    *y = (int16_t)((uint8_t)(ty - 1u) << 3);
+    return true;
 }
 
 uint8_t world_mine_at_pixel(int16_t x, int16_t y)

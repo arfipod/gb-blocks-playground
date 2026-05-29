@@ -15,6 +15,7 @@ typedef struct Enemy {
     int8_t vx;
     int8_t vy;
     uint8_t active;
+    uint8_t grounded;
 } Enemy;
 
 void enemies_init(Enemy *enemies);

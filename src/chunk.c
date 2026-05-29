@@ -69,6 +69,11 @@ static uint8_t column_surface(uint16_t x)
     return clamp_surface(surface);
 }
 
+uint8_t chunk_surface_y(uint16_t x)
+{
+    return column_surface(x);
+}
+
 static uint8_t tree_base_at(uint16_t x)
 {
     uint8_t seed_lo = (uint8_t)generation_seed;

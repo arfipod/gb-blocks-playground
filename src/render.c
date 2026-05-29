@@ -16,7 +16,7 @@
 #define DROP_FIRST_SPRITE (ENEMY_FIRST_SPRITE + ENEMY_MAX_ACTIVE)
 #define SPRITE_HIDE_X 0u
 #define SPRITE_HIDE_Y 0u
-#define TORCH_LIGHT_RADIUS 4u
+#define RENDER_DIRTY_TILE_BUDGET 12u
 
 static uint8_t bg_buffer[WORLD_HEIGHT_TILES];
 static uint8_t win_buffer[WIN_WIDTH * WIN_HEIGHT];
@@ -288,6 +288,8 @@ void render_world(const Camera *camera)
     uint16_t dirty_tx;
     uint16_t origin_tile = (uint16_t)(camera->x >> 3);
     uint8_t dirty_ty;
+    uint8_t dirty_budget = RENDER_DIRTY_TILE_BUDGET;
+    bool full_redraw = false;
     bool lighting_dirty = world_lighting_dirty();
 
     if (!world_rendered) {
@@ -318,6 +320,8 @@ void render_world(const Camera *camera)
         for (x = 0u; x < BG_BUFFER_WIDTH; ++x) {
             render_world_column((uint16_t)(origin_tile + x));
         }
+
+        full_redraw = true;
     } else if (delta > 0) {
         uint8_t x;
 
@@ -339,76 +343,42 @@ void render_world(const Camera *camera)
         world_clear_lighting_dirty();
     }
 
-    while (world_take_dirty_tile(&dirty_tx, &dirty_ty)) {
+    if (full_redraw) {
+        while (world_take_dirty_tile(&dirty_tx, &dirty_ty)) {
+            /* The full redraw already covered queued world changes. */
+        }
+
+        return;
+    }
+
+    while (dirty_budget != 0u && world_take_dirty_tile(&dirty_tx, &dirty_ty)) {
         if (dirty_ty < WORLD_HEIGHT_TILES &&
             dirty_tx >= origin_tile &&
             dirty_tx < (uint16_t)(origin_tile + BG_BUFFER_WIDTH)) {
             uint8_t tile = render_tile_for_world_pos(dirty_tx, dirty_ty);
             set_bkg_tiles((uint8_t)(dirty_tx & 31u), (uint8_t)(dirty_ty & 31u), 1u, 1u, &tile);
         }
+
+        --dirty_budget;
     }
-}
-
-static uint8_t light_level_for_world_pos(uint16_t tx, uint8_t ty)
-{
-    int8_t dx;
-    int8_t dy;
-    uint8_t best = 2u;
-
-    for (dy = (int8_t)-TORCH_LIGHT_RADIUS; dy <= (int8_t)TORCH_LIGHT_RADIUS; ++dy) {
-        int16_t check_ty = (int16_t)ty + dy;
-
-        if (check_ty < 0 || check_ty >= WORLD_HEIGHT_TILES) {
-            continue;
-        }
-
-        for (dx = (int8_t)-TORCH_LIGHT_RADIUS; dx <= (int8_t)TORCH_LIGHT_RADIUS; ++dx) {
-            int16_t check_tx = (int16_t)tx + dx;
-            uint8_t distance;
-
-            if (check_tx < 0 || check_tx >= WORLD_WIDTH_TILES) {
-                continue;
-            }
-
-            if (world_get_tile_or_empty((uint16_t)check_tx, (uint8_t)check_ty) != TILE_TORCH) {
-                continue;
-            }
-
-            distance = (uint8_t)((dx < 0 ? -dx : dx) + (dy < 0 ? -dy : dy));
-
-            if (distance <= 2u) {
-                return 0u;
-            }
-
-            if (distance <= TORCH_LIGHT_RADIUS) {
-                best = 1u;
-            }
-        }
-    }
-
-    return best;
 }
 
 static uint8_t render_tile_for_world_pos(uint16_t tx, uint8_t ty)
 {
     uint8_t tile = world_get_tile_or_empty(tx, ty);
-    uint8_t light_level;
 
     if (tile >= TILE_WORLD_COUNT) {
         return tile;
     }
 
-    light_level = light_level_for_world_pos(tx, ty);
-
-    if (light_level == 0u) {
+    switch (world_light_level(tx, ty)) {
+    case 0u:
         return tile;
-    }
-
-    if (light_level == 1u) {
+    case 1u:
         return (uint8_t)(TILE_DARK_BASE + tile);
+    default:
+        return (uint8_t)(TILE_VERY_DARK_BASE + tile);
     }
-
-    return (uint8_t)(TILE_VERY_DARK_BASE + tile);
 }
 
 static void render_world_column(uint16_t world_x)
